@@ -1,6 +1,6 @@
 # Sevdesk Read Operations (GET)
 
-This file is generated from `src/data/operations.json`.
+This file is generated from the OpenAPI-derived operation catalog shipped with this CLI (`src/data/operations.json` in the repo, `dist/data/operations.json` in the published package).
 Generator: `sevdesk-agent docs read-ops --output knowledge/READ_OPERATIONS.md`.
 
 ## Global Usage Rules
@@ -8,7 +8,7 @@ Generator: `sevdesk-agent docs read-ops --output knowledge/READ_OPERATIONS.md`.
 - Inspect params and quirks: `sevdesk-agent op-show <operationId>`
 - Provide params via repeated flags: `--path key=value` and `--query key=value`
 - Quote bracket params in shells: `--query 'contact[id]=123'`
-- For binary content-types (pdf/xml/zip/csv), the CLI returns metadata, not the raw bytes (see per-op notes).
+- If the server returns a non-JSON binary content-type (pdf/xml/zip/csv), the CLI prints metadata, not the raw bytes (see per-op notes).
 
 ## Runtime Quirks (Known)
 
@@ -302,7 +302,8 @@ _(none)_
 
 Notes:
 
-- Binary responses: the CLI currently does not download the PDF bytes; it returns metadata (`binary`, `bytes`, `contentType`).
+- `*GetPdf` responses are typically JSON wrapped in `data.objects` (often containing `filename`, `mimetype`, and base64 `content`). The CLI does not automatically write files to disk.
+- If an endpoint returns a non-JSON binary content-type (pdf/xml/zip/csv), the CLI prints metadata (`binary`, `bytes`, `contentType`) instead of raw bytes.
 
 Example:
 
@@ -1291,7 +1292,7 @@ _(none)_
 
 Notes:
 
-- Date filters: `startDate`/`endDate` work as Unix timestamps (seconds). Example: `startDate=1767225600` and `endDate=1769903999` for January 2026.
+- Date filters (observed): in our tests, `startDate`/`endDate` work as Unix timestamps (seconds); ISO dates like `2026-01-01` returned empty results. Example: `startDate=1767225600` and `endDate=1769903999` for January 2026.
 
 Example:
 
@@ -1842,7 +1843,8 @@ Runtime quirk:
 
 Notes:
 
-- Binary responses: the CLI currently does not download the PDF bytes; it returns metadata (`binary`, `bytes`, `contentType`).
+- `*GetPdf` responses are typically JSON wrapped in `data.objects` (often containing `filename`, `mimetype`, and base64 `content`). The CLI does not automatically write files to disk.
+- If an endpoint returns a non-JSON binary content-type (pdf/xml/zip/csv), the CLI prints metadata (`binary`, `bytes`, `contentType`) instead of raw bytes.
 
 Example:
 
@@ -1936,7 +1938,8 @@ Runtime quirk:
 
 Notes:
 
-- Binary responses: the CLI currently does not download the PDF bytes; it returns metadata (`binary`, `bytes`, `contentType`).
+- `*GetPdf` responses are typically JSON wrapped in `data.objects` (often containing `filename`, `mimetype`, and base64 `content`). The CLI does not automatically write files to disk.
+- If an endpoint returns a non-JSON binary content-type (pdf/xml/zip/csv), the CLI prints metadata (`binary`, `bytes`, `contentType`) instead of raw bytes.
 
 Example:
 

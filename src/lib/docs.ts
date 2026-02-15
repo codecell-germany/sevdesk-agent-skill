@@ -100,13 +100,16 @@ function renderSpecialNotes(entry: OperationCatalogEntry): string[] {
   // Observed behavior (account-dependent): ISO date strings can yield empty results.
   if (entry.operationId === "getInvoices") {
     notes.push(
-      "- Date filters: `startDate`/`endDate` work as Unix timestamps (seconds). Example: `startDate=1767225600` and `endDate=1769903999` for January 2026."
+      "- Date filters (observed): in our tests, `startDate`/`endDate` work as Unix timestamps (seconds); ISO dates like `2026-01-01` returned empty results. Example: `startDate=1767225600` and `endDate=1769903999` for January 2026."
     );
   }
 
   if (entry.path.toLowerCase().includes("getpdf")) {
     notes.push(
-      "- Binary responses: the CLI currently does not download the PDF bytes; it returns metadata (`binary`, `bytes`, `contentType`)."
+      "- `*GetPdf` responses are typically JSON wrapped in `data.objects` (often containing `filename`, `mimetype`, and base64 `content`). The CLI does not automatically write files to disk."
+    );
+    notes.push(
+      "- If an endpoint returns a non-JSON binary content-type (pdf/xml/zip/csv), the CLI prints metadata (`binary`, `bytes`, `contentType`) instead of raw bytes."
     );
   }
 
@@ -126,7 +129,9 @@ export function renderReadOperationsMarkdown(options: {
   const lines: string[] = [];
   lines.push("# Sevdesk Read Operations (GET)");
   lines.push("");
-  lines.push("This file is generated from `src/data/operations.json`.");
+  lines.push(
+    "This file is generated from the OpenAPI-derived operation catalog shipped with this CLI (`src/data/operations.json` in the repo, `dist/data/operations.json` in the published package)."
+  );
   lines.push("Generator: `sevdesk-agent docs read-ops --output knowledge/READ_OPERATIONS.md`.");
   lines.push("");
   lines.push("## Global Usage Rules");
@@ -134,7 +139,9 @@ export function renderReadOperationsMarkdown(options: {
   lines.push("- Inspect params and quirks: `sevdesk-agent op-show <operationId>`");
   lines.push("- Provide params via repeated flags: `--path key=value` and `--query key=value`");
   lines.push("- Quote bracket params in shells: `--query 'contact[id]=123'`");
-  lines.push("- For binary content-types (pdf/xml/zip/csv), the CLI returns metadata, not the raw bytes (see per-op notes).");
+  lines.push(
+    "- If the server returns a non-JSON binary content-type (pdf/xml/zip/csv), the CLI prints metadata, not the raw bytes (see per-op notes)."
+  );
   lines.push("");
   lines.push("## Runtime Quirks (Known)");
   lines.push("");
