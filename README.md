@@ -9,6 +9,21 @@ Skill and CLI for safely operating the sevdesk API with coding agents.
 - Runtime quirks: `ops-quirks` + optional response normalization for known deviations.
 - Agent handoff context: `context snapshot` emits a deterministic JSON snapshot to `stdout` (optional `--output` file).
 
+## Install Skill (Recommended: skills.sh CLI)
+One command to install this skill for all your coding agents:
+```bash
+npx skills add codecell-germany/sevdesk-agent-skill -g --skill sevdesk-agent-cli --agent '*' -y
+```
+
+List available skills in this repo (no install):
+```bash
+npx skills add codecell-germany/sevdesk-agent-skill -l
+```
+
+Notes:
+- This is the primary ecosystem for skills.sh. Leaderboard placement is based on anonymous install telemetry from the `skills` CLI (opt out via `DISABLE_TELEMETRY=1`). See: https://skills.sh/
+- If you are unsure about agent ids, omit `--agent ...` (or `-a ...`) and run interactively.
+
 ## Quick Start (works for all agents)
 Requirements:
 - Node.js >= 20
@@ -74,6 +89,11 @@ sevdesk-agent --help
 - `docs read-ops`: generate `knowledge/READ_OPERATIONS.md` from the catalog
 - `context snapshot`: capture a deterministic read-only context snapshot
 
+### Skill Installer Commands (overview)
+- `sevdesk-agent-skill install`: copy `skills/sevdesk-agent-cli` into `~/.codex/skills` (supports `--force`, `--codex-home`, `--dry-run`)
+- `sevdesk-agent-skill uninstall`: remove the skill from the Codex skills folder
+- `sevdesk-agent-skill doctor`: diagnostics (node version + payload + install state)
+
 Full operation catalog (operationId -> HTTP method/path):
 - `OPERATIONS.md`
 
@@ -128,8 +148,24 @@ The key idea for all coding agents is the same:
 2. Provide `SEVDESK_API_TOKEN` in the agent environment.
 3. Require that all sevdesk interactions go through `sevdesk-agent` (read-first) and that non-GET calls need explicit human confirmation.
 
-### Install Skill via npx (recommended)
-This installs (copies) the skill into your Codex skills folder:
+### Install Skill via skills CLI (recommended)
+Install this specific skill for all agents globally:
+```bash
+npx skills add codecell-germany/sevdesk-agent-skill -g --skill sevdesk-agent-cli --agent '*' -y
+```
+
+Install all skills from this repo for all agents globally (if/when the repo contains multiple skills):
+```bash
+npx skills add codecell-germany/sevdesk-agent-skill -g --all
+```
+
+Telemetry opt-out:
+```bash
+DISABLE_TELEMETRY=1 npx skills add codecell-germany/sevdesk-agent-skill -g --skill sevdesk-agent-cli --agent '*' -y
+```
+
+### Install Skill via npm package installer (Codex-only fallback)
+This installs (copies) the skill into your Codex skills folder (`~/.codex/skills/sevdesk-agent-cli`):
 ```bash
 npx -y @codecell-germany/sevdesk-agent-skill install
 ```
