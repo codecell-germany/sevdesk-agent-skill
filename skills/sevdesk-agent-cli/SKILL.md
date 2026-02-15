@@ -1,6 +1,6 @@
 ---
 name: sevdesk-agent-cli
-description: Use the local sevdesk-agent TypeScript CLI to query sevdesk safely (read-first), run guarded write operations when explicitly confirmed, and generate a reusable context snapshot for agent handoffs.
+description: Sevdesk: Rechnungen/Angebote/Kontakte via read-first CLI (guarded writes) + context snapshots for agent handoffs.
 ---
 
 # sevdesk-agent-cli

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { readFileSync } from "node:fs";
 import { access, cp, mkdir, readdir, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -43,6 +44,17 @@ function getSourceSkillDir(): string {
 
 function getTargetSkillDir(codexHome: string): string {
   return path.join(codexHome, "skills", "sevdesk-agent-cli");
+}
+
+function readPackageVersion(): string {
+  try {
+    const pkgPath = path.join(getPackageRoot(), "package.json");
+    const raw = readFileSync(pkgPath, "utf8");
+    const parsed = JSON.parse(raw) as { version?: unknown };
+    return typeof parsed.version === "string" && parsed.version.trim() ? parsed.version : "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
 }
 
 async function installSkill(opts: { codexHome?: string; force?: boolean; dryRun?: boolean }) {
@@ -147,7 +159,7 @@ const program = new Command();
 program
   .name("sevdesk-agent-skill")
   .description("Install/remove the sevdesk-agent-cli skill for Codex (~/.codex/skills)")
-  .version("0.1.0");
+  .version(readPackageVersion());
 
 program
   .command("install")
