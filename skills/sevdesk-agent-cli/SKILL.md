@@ -1,6 +1,6 @@
 ---
 name: sevdesk-agent-cli
-description: "Sevdesk: Rechnungen/Angebote/Kontakte via read-first CLI (guarded writes) + context snapshots for agent handoffs."
+description: "Sevdesk: invoices/quotes/contacts via a read-first CLI (guarded writes) + context snapshots for agent handoffs."
 ---
 
 # sevdesk-agent-cli
