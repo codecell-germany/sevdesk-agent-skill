@@ -10,3 +10,4 @@ Plans/
 .npmrc
 *.log
 *.tmp
+*.tgz

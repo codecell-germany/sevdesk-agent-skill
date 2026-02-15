@@ -1,20 +1,34 @@
 {
-  "name": "skill-sevdesk",
+  "name": "@codecell-germany/sevdesk-agent-skill",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "description": "Agent-focused sevdesk CLI in TypeScript",
   "license": "MIT",
   "author": "Nikolas Gottschol",
   "bin": {
-    "sevdesk-agent": "dist/index.js"
+    "sevdesk-agent": "dist/index.js",
+    "sevdesk-agent-skill": "dist/installer.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "clean": "node scripts/clean.js",
+    "build": "npm run clean && tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run tests/unit",
     "test:unit": "vitest run tests/unit",
     "test:live": "vitest run tests/integration",
-    "test:all": "vitest run"
+    "test:all": "vitest run",
+    "prepack": "npm run build && node dist/index.js docs read-ops --output knowledge/READ_OPERATIONS.md"
+  },
+  "files": [
+    "dist/**",
+    "skills/**",
+    "knowledge/**",
+    "OPERATIONS.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "engines": {
     "node": ">=20"

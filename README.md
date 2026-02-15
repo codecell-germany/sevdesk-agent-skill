@@ -130,11 +130,16 @@ export SEVDESK_API_TOKEN="..."
 
 ### Codex App
 1. Same build/token steps as above.
-2. Install the skill via symlink:
+2. Install the skill via npx (copies into `~/.codex/skills/sevdesk-agent-cli`):
 ```bash
-ln -s <REPO_ROOT>/skills/sevdesk-agent-cli $HOME/.codex/skills/sevdesk-agent-cli
+npx -y @codecell-germany/sevdesk-agent-skill install
 ```
 3. In Codex App, select/use the `sevdesk-agent-cli` skill for tasks that touch sevdesk.
+
+Update/overwrite:
+```bash
+npx -y @codecell-germany/sevdesk-agent-skill install --force
+```
 
 ### Claude Code
 Claude Code can use external CLIs. Recommended setup:

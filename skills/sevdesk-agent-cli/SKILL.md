@@ -12,7 +12,9 @@ Use this skill when tasks involve sevdesk API access from this workspace, especi
 - produce a context snapshot for later agent runs.
 
 ## Preconditions
-- CLI has been built: `npm run build`
+- CLI is runnable, either:
+  - from a checkout of this repo: `npm install && npm run build` (then run `sevdesk-agent ...`), or
+  - via npx (no local build): `npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent --help`
 - API token is available in env:
   - `SEVDESK_API_TOKEN=<token>`
 - Optional env:
