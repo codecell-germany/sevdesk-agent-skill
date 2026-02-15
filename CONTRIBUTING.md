@@ -30,6 +30,6 @@ SEVDESK_LIVE_TESTS=1 SEVDESK_API_TOKEN="..." npm run test:live
 
 ## Submitting changes
 - Open a PR with a clear description and rationale.
+- Target branch: open PRs against `dev` (not `main`).
 - Include or update tests where applicable.
 - Update documentation if user-facing behavior changes.
-
