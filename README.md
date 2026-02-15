@@ -51,11 +51,28 @@ Run the CLI from this repo:
 ./dist/index.js ops list --read-only
 ```
 
+Run the CLI via npx (no local checkout/build needed):
+```bash
+# run from any directory (recommended: not from inside this repo)
+npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent --help
+npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent ops list --read-only
+```
+
 Optional: install as a global CLI for your shell:
 ```bash
 npm link
 sevdesk-agent --help
 ```
+
+### CLI Commands (overview)
+- `ops list`: list operations from the OpenAPI-derived catalog (filters: `--read-only`, `--method`, `--tag`, `--json`)
+- `ops-quirks`: list known runtime quirks and normalizations
+- `op-show <operationId>`: show method/path/params (+ runtime quirk)
+- `read <operationId>`: execute GET operation (supports `--path`, `--query`, `--header`, `--normalize`, `--output`, `--save`)
+- `write <operationId>`: execute non-GET with guards (`--execute`, `--confirm-execute yes`, `--allow-write`/`SEVDESK_ALLOW_WRITE=true`)
+- `docs usage`: short read-only usage guide
+- `docs read-ops`: generate `knowledge/READ_OPERATIONS.md` from the catalog
+- `context snapshot`: capture a deterministic read-only context snapshot
 
 Full operation catalog (operationId -> HTTP method/path):
 - `OPERATIONS.md`
@@ -107,9 +124,9 @@ This repo contains a reusable agent "skill" prompt and workflow under:
 - `skills/sevdesk-agent-cli/SKILL.md`
 
 The key idea for all coding agents is the same:
-1. Ensure the `sevdesk-agent` CLI is runnable (`npm run build`, optional `npm link`).
+1. Ensure the `sevdesk-agent` CLI is runnable (recommended: via npx).
 2. Provide `SEVDESK_API_TOKEN` in the agent environment.
-3. Instruct the agent to use the CLI as the only interface to sevdesk and to stay read-first.
+3. Require that all sevdesk interactions go through `sevdesk-agent` (read-first) and that non-GET calls need explicit human confirmation.
 
 ### Install Skill via npx (recommended)
 This installs (copies) the skill into your Codex skills folder:
@@ -123,6 +140,12 @@ run the command from a different directory (e.g. `cd ~`) and try again.
 Update/overwrite:
 ```bash
 npx -y @codecell-germany/sevdesk-agent-skill install --force
+```
+
+### Provide the CLI to agents (recommended: npx)
+If the agent can run shell commands, the simplest way is to run `sevdesk-agent` via `npx` without any local checkout:
+```bash
+npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent ops list --read-only
 ```
 
 ### Codex CLI
@@ -157,7 +180,9 @@ npx -y @codecell-germany/sevdesk-agent-skill install --force
 
 ### Claude Code
 Claude Code can use external CLIs. Recommended setup:
-1. Build the repo and expose the CLI (recommended):
+1. Provide the CLI:
+   Option A (recommended, no checkout): use npx in commands.
+   Option B: build the repo and expose the CLI (recommended if you need offline use):
 ```bash
 npm install
 npm run build
@@ -174,7 +199,7 @@ export SEVDESK_API_TOKEN="..."
 
 ### Gemini CLI
 Gemini CLI can be used with tools/terminal access depending on your setup. Recommended setup:
-1. Build + optionally `npm link` as above.
+1. Provide the CLI (recommended: `npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent ...`, or build + `npm link`).
 2. Provide `SEVDESK_API_TOKEN` in the environment.
 3. Paste/attach `skills/sevdesk-agent-cli/SKILL.md` as the system/project instruction for the session and require all sevdesk interactions to go through `sevdesk-agent`.
 
