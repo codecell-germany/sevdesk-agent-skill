@@ -70,6 +70,11 @@ Read an endpoint (GET only):
 sevdesk-agent read getInvoices --output json
 ```
 
+Generate a full read-only operation reference (Markdown):
+```bash
+sevdesk-agent docs read-ops --output knowledge/READ_OPERATIONS.md
+```
+
 Context snapshot (stdout by default):
 ```bash
 sevdesk-agent context snapshot --include-default --max-objects 20 > snapshot.json

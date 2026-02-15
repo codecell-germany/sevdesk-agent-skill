@@ -21,6 +21,7 @@ import {
   normalizeReadData,
   validateRuntimeReadQuery,
 } from "./lib/quirks";
+import { renderReadOperationsMarkdown, renderReadUsageText } from "./lib/docs";
 import type { SevdeskResponse } from "./lib/types";
 
 function fail(message: string): never {
@@ -67,7 +68,18 @@ const program = new Command();
 program
   .name("sevdesk-agent")
   .description("Agent-focused sevdesk CLI (TypeScript)")
-  .version("0.1.0");
+  .version("0.1.0")
+  .addHelpText(
+    "after",
+    [
+      "",
+      "Tips:",
+      "- Discover ops: sevdesk-agent ops list --read-only",
+      "- Inspect params: sevdesk-agent op-show <operationId>",
+      "- Generate reference docs: sevdesk-agent docs read-ops --output knowledge/READ_OPERATIONS.md",
+      "",
+    ].join("\n")
+  );
 
 program
   .command("ops")
@@ -150,6 +162,19 @@ program
   .option("--no-normalize", "Disable response normalization")
   .option("--output <mode>", "pretty|json|raw", "pretty")
   .option("--save <file>", "Save full response to file")
+  .addHelpText(
+    "after",
+    [
+      "",
+      "Examples:",
+      "  sevdesk-agent read bookkeepingSystemVersion --output json",
+      "  sevdesk-agent read getInvoices --query startDate=1767225600 --query endDate=1769903999 --output json",
+      "  sevdesk-agent read getInvoices --query 'contact[id]=123' --output json",
+      "",
+      "Tip: use `sevdesk-agent op-show <operationId>` for params and runtime quirks.",
+      "",
+    ].join("\n")
+  )
   .action(async (operationId: string, opts) => {
     const operation = getOperation(operationId);
     if (operation.method !== "GET") {
@@ -190,6 +215,44 @@ program
       normalizationWarnings: normalization.warnings,
       runtimeQuirk: getOperationQuirk(operationId) ?? null,
     });
+  });
+
+const docs = program.command("docs").description("Documentation helpers");
+
+docs
+  .command("read-ops")
+  .description("Generate markdown reference for all read-only (GET) operations")
+  .option("--tag <tag>", "Only include operations with this tag (case-insensitive)")
+  .option("--output <file>", "Write markdown to a file instead of stdout")
+  .action(async (opts) => {
+    const tag = typeof opts.tag === "string" ? opts.tag.trim().toLowerCase() : "";
+    const catalog = getCatalog().filter((op) => op.method === "GET");
+    const filtered =
+      tag.length > 0
+        ? catalog.filter((op) => op.tags.some((t) => t.toLowerCase() === tag))
+        : catalog;
+
+    const markdown = renderReadOperationsMarkdown({
+      catalog: filtered,
+      quirks: listOperationQuirks(),
+    });
+
+    if (opts.output) {
+      const outputPath = path.resolve(process.cwd(), String(opts.output));
+      await mkdir(path.dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, markdown, "utf8");
+      process.stdout.write(`${outputPath}\n`);
+      return;
+    }
+
+    process.stdout.write(markdown);
+  });
+
+docs
+  .command("usage")
+  .description("Print a short read-only usage guide")
+  .action(() => {
+    process.stdout.write(renderReadUsageText());
   });
 
 program
