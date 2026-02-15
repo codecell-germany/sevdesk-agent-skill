@@ -203,24 +203,6 @@ Gemini CLI can be used with tools/terminal access depending on your setup. Recom
 2. Provide `SEVDESK_API_TOKEN` in the environment.
 3. Paste/attach `skills/sevdesk-agent-cli/SKILL.md` as the system/project instruction for the session and require all sevdesk interactions to go through `sevdesk-agent`.
 
-## Maintainers: Publish to npm
-Publishing requires npm 2FA (OTP) enabled for publish operations.
-
-1. Ensure you are logged in:
-```bash
-npm whoami
-```
-
-2. Publish (will prompt for OTP if required):
-```bash
-npm publish
-```
-
-Or explicitly:
-```bash
-npm publish --otp=123456
-```
-
 ## Disclaimer
 This project is not affiliated with sevdesk. "sevdesk" is a trademark of its respective owner.
 
