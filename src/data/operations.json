@@ -1,0 +1,3563 @@
+[
+  {
+    "operationId": "bookkeepingSystemVersion",
+    "method": "GET",
+    "path": "/Tools/bookkeepingSystemVersion",
+    "tags": [
+      "Basics"
+    ],
+    "params": [],
+    "responseCodes": [
+      "200",
+      "401"
+    ]
+  },
+  {
+    "operationId": "getCheckAccounts",
+    "method": "GET",
+    "path": "/CheckAccount",
+    "tags": [
+      "CheckAccount"
+    ],
+    "params": [],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createFileImportAccount",
+    "method": "POST",
+    "path": "/CheckAccount/Factory/fileImportAccount",
+    "tags": [
+      "CheckAccount"
+    ],
+    "params": [],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "422",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createClearingAccount",
+    "method": "POST",
+    "path": "/CheckAccount/Factory/clearingAccount",
+    "tags": [
+      "CheckAccount"
+    ],
+    "params": [],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "422",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getCheckAccountById",
+    "method": "GET",
+    "path": "/CheckAccount/{checkAccountId}",
+    "tags": [
+      "CheckAccount"
+    ],
+    "params": [
+      {
+        "name": "checkAccountId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "updateCheckAccount",
+    "method": "PUT",
+    "path": "/CheckAccount/{checkAccountId}",
+    "tags": [
+      "CheckAccount"
+    ],
+    "params": [
+      {
+        "name": "checkAccountId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "deleteCheckAccount",
+    "method": "DELETE",
+    "path": "/CheckAccount/{checkAccountId}",
+    "tags": [
+      "CheckAccount"
+    ],
+    "params": [
+      {
+        "name": "checkAccountId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getBalanceAtDate",
+    "method": "GET",
+    "path": "/CheckAccount/{checkAccountId}/getBalanceAtDate",
+    "tags": [
+      "CheckAccount"
+    ],
+    "params": [
+      {
+        "name": "checkAccountId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "date",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getTransactions",
+    "method": "GET",
+    "path": "/CheckAccountTransaction",
+    "tags": [
+      "CheckAccountTransaction"
+    ],
+    "params": [
+      {
+        "name": "checkAccount[id]",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "checkAccount[objectName]",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "isBooked",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "paymtPurpose",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "startDate",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "endDate",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "payeePayerName",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "onlyCredit",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "onlyDebit",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createTransaction",
+    "method": "POST",
+    "path": "/CheckAccountTransaction",
+    "tags": [
+      "CheckAccountTransaction"
+    ],
+    "params": [],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getCheckAccountTransactionById",
+    "method": "GET",
+    "path": "/CheckAccountTransaction/{checkAccountTransactionId}",
+    "tags": [
+      "CheckAccountTransaction"
+    ],
+    "params": [
+      {
+        "name": "checkAccountTransactionId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "updateCheckAccountTransaction",
+    "method": "PUT",
+    "path": "/CheckAccountTransaction/{checkAccountTransactionId}",
+    "tags": [
+      "CheckAccountTransaction"
+    ],
+    "params": [
+      {
+        "name": "checkAccountTransactionId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "deleteCheckAccountTransaction",
+    "method": "DELETE",
+    "path": "/CheckAccountTransaction/{checkAccountTransactionId}",
+    "tags": [
+      "CheckAccountTransaction"
+    ],
+    "params": [
+      {
+        "name": "checkAccountTransactionId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "checkAccountTransactionEnshrine",
+    "method": "PUT",
+    "path": "/CheckAccountTransaction/{checkAccountTransactionId}/enshrine",
+    "tags": [
+      "CheckAccountTransaction"
+    ],
+    "params": [
+      {
+        "name": "checkAccountTransactionId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "422",
+      "500"
+    ]
+  },
+  {
+    "operationId": "listPrivateTransactionRules",
+    "method": "GET",
+    "path": "/PrivateTransactionRule",
+    "tags": [
+      "PrivateTransactionRule"
+    ],
+    "params": [],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createPrivateTransactionRule",
+    "method": "POST",
+    "path": "/PrivateTransactionRule",
+    "tags": [
+      "PrivateTransactionRule"
+    ],
+    "params": [],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "422",
+      "500"
+    ]
+  },
+  {
+    "operationId": "deletePrivateTransactionRule",
+    "method": "DELETE",
+    "path": "/PrivateTransactionRule/{id}",
+    "tags": [
+      "PrivateTransactionRule"
+    ],
+    "params": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getNextCustomerNumber",
+    "method": "GET",
+    "path": "/Contact/Factory/getNextCustomerNumber",
+    "tags": [
+      "Contact"
+    ],
+    "params": [],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "findContactsByCustomFieldValue",
+    "method": "GET",
+    "path": "/Contact/Factory/findContactsByCustomFieldValue",
+    "tags": [
+      "Contact"
+    ],
+    "params": [
+      {
+        "name": "value",
+        "in": "query",
+        "required": true
+      },
+      {
+        "name": "customFieldSetting[id]",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "customFieldSetting[objectName]",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "customFieldName",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "contactCustomerNumberAvailabilityCheck",
+    "method": "GET",
+    "path": "/Contact/Mapper/checkCustomerNumberAvailability",
+    "tags": [
+      "Contact"
+    ],
+    "params": [
+      {
+        "name": "customerNumber",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getContacts",
+    "method": "GET",
+    "path": "/Contact",
+    "tags": [
+      "Contact"
+    ],
+    "params": [
+      {
+        "name": "depth",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "customerNumber",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createContact",
+    "method": "POST",
+    "path": "/Contact",
+    "tags": [
+      "Contact"
+    ],
+    "params": [],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getContactById",
+    "method": "GET",
+    "path": "/Contact/{contactId}",
+    "tags": [
+      "Contact"
+    ],
+    "params": [
+      {
+        "name": "contactId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "updateContact",
+    "method": "PUT",
+    "path": "/Contact/{contactId}",
+    "tags": [
+      "Contact"
+    ],
+    "params": [
+      {
+        "name": "contactId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "deleteContact",
+    "method": "DELETE",
+    "path": "/Contact/{contactId}",
+    "tags": [
+      "Contact"
+    ],
+    "params": [
+      {
+        "name": "contactId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getContactTabsItemCountById",
+    "method": "GET",
+    "path": "/Contact/{contactId}/getTabsItemCount",
+    "tags": [
+      "Contact"
+    ],
+    "params": [
+      {
+        "name": "contactId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createContactAddress",
+    "method": "POST",
+    "path": "/ContactAddress",
+    "tags": [
+      "ContactAddress"
+    ],
+    "params": [],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getContactAddresses",
+    "method": "GET",
+    "path": "/ContactAddress",
+    "tags": [
+      "ContactAddress"
+    ],
+    "params": [],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "contactAddressId",
+    "method": "GET",
+    "path": "/ContactAddress/{contactAddressId}",
+    "tags": [
+      "ContactAddress"
+    ],
+    "params": [
+      {
+        "name": "contactAddressId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "updateContactAddress",
+    "method": "PUT",
+    "path": "/ContactAddress/{contactAddressId}",
+    "tags": [
+      "ContactAddress"
+    ],
+    "params": [
+      {
+        "name": "contactAddressId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "deleteContactAddress",
+    "method": "DELETE",
+    "path": "/ContactAddress/{contactAddressId}",
+    "tags": [
+      "ContactAddress"
+    ],
+    "params": [
+      {
+        "name": "contactAddressId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getCommunicationWays",
+    "method": "GET",
+    "path": "/CommunicationWay",
+    "tags": [
+      "CommunicationWay"
+    ],
+    "params": [
+      {
+        "name": "contact[id]",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "contact[objectName]",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "type",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "main",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createCommunicationWay",
+    "method": "POST",
+    "path": "/CommunicationWay",
+    "tags": [
+      "CommunicationWay"
+    ],
+    "params": [],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getCommunicationWayById",
+    "method": "GET",
+    "path": "/CommunicationWay/{communicationWayId}",
+    "tags": [
+      "CommunicationWay"
+    ],
+    "params": [
+      {
+        "name": "communicationWayId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "deleteCommunicationWay",
+    "method": "DELETE",
+    "path": "/CommunicationWay/{communicationWayId}",
+    "tags": [
+      "CommunicationWay"
+    ],
+    "params": [
+      {
+        "name": "communicationWayId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "UpdateCommunicationWay",
+    "method": "PUT",
+    "path": "/CommunicationWay/{communicationWayId}",
+    "tags": [
+      "CommunicationWay"
+    ],
+    "params": [
+      {
+        "name": "communicationWayId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getCommunicationWayKeys",
+    "method": "GET",
+    "path": "/CommunicationWayKey",
+    "tags": [
+      "CommunicationWay"
+    ],
+    "params": [],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getAccountingContact",
+    "method": "GET",
+    "path": "/AccountingContact",
+    "tags": [
+      "AccountingContact"
+    ],
+    "params": [
+      {
+        "name": "contact[id]",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "contact[objectName]",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createAccountingContact",
+    "method": "POST",
+    "path": "/AccountingContact",
+    "tags": [
+      "AccountingContact"
+    ],
+    "params": [],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getAccountingContactById",
+    "method": "GET",
+    "path": "/AccountingContact/{accountingContactId}",
+    "tags": [
+      "AccountingContact"
+    ],
+    "params": [
+      {
+        "name": "accountingContactId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "updateAccountingContact",
+    "method": "PUT",
+    "path": "/AccountingContact/{accountingContactId}",
+    "tags": [
+      "AccountingContact"
+    ],
+    "params": [
+      {
+        "name": "accountingContactId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "deleteAccountingContact",
+    "method": "DELETE",
+    "path": "/AccountingContact/{accountingContactId}",
+    "tags": [
+      "AccountingContact"
+    ],
+    "params": [
+      {
+        "name": "accountingContactId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getPlaceholder",
+    "method": "GET",
+    "path": "/Textparser/fetchDictionaryEntriesByType",
+    "tags": [
+      "ContactField"
+    ],
+    "params": [
+      {
+        "name": "objectName",
+        "in": "query",
+        "required": true
+      },
+      {
+        "name": "subObjectName",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getContactFields",
+    "method": "GET",
+    "path": "/ContactCustomField",
+    "tags": [
+      "ContactField"
+    ],
+    "params": [],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createContactField",
+    "method": "POST",
+    "path": "/ContactCustomField",
+    "tags": [
+      "ContactField"
+    ],
+    "params": [],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getContactFieldsById",
+    "method": "GET",
+    "path": "/ContactCustomField/{contactCustomFieldId}",
+    "tags": [
+      "ContactField"
+    ],
+    "params": [
+      {
+        "name": "contactCustomFieldId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "updateContactfield",
+    "method": "PUT",
+    "path": "/ContactCustomField/{contactCustomFieldId}",
+    "tags": [
+      "ContactField"
+    ],
+    "params": [
+      {
+        "name": "contactCustomFieldId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "deleteContactCustomFieldId",
+    "method": "DELETE",
+    "path": "/ContactCustomField/{contactCustomFieldId}",
+    "tags": [
+      "ContactField"
+    ],
+    "params": [
+      {
+        "name": "contactCustomFieldId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getContactFieldSettings",
+    "method": "GET",
+    "path": "/ContactCustomFieldSetting",
+    "tags": [
+      "ContactField"
+    ],
+    "params": [],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createContactFieldSetting",
+    "method": "POST",
+    "path": "/ContactCustomFieldSetting",
+    "tags": [
+      "ContactField"
+    ],
+    "params": [],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getContactFieldSettingById",
+    "method": "GET",
+    "path": "/ContactCustomFieldSetting/{contactCustomFieldSettingId}",
+    "tags": [
+      "ContactField"
+    ],
+    "params": [
+      {
+        "name": "contactCustomFieldSettingId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "updateContactFieldSetting",
+    "method": "PUT",
+    "path": "/ContactCustomFieldSetting/{contactCustomFieldSettingId}",
+    "tags": [
+      "ContactField"
+    ],
+    "params": [
+      {
+        "name": "contactCustomFieldSettingId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "deleteContactFieldSetting",
+    "method": "DELETE",
+    "path": "/ContactCustomFieldSetting/{contactCustomFieldSettingId}",
+    "tags": [
+      "ContactField"
+    ],
+    "params": [
+      {
+        "name": "contactCustomFieldSettingId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getReferenceCount",
+    "method": "GET",
+    "path": "/ContactCustomFieldSetting/{contactCustomFieldSettingId}/getReferenceCount",
+    "tags": [
+      "ContactField"
+    ],
+    "params": [
+      {
+        "name": "contactCustomFieldSettingId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getCreditNotes",
+    "method": "GET",
+    "path": "/CreditNote",
+    "tags": [
+      "CreditNote"
+    ],
+    "params": [
+      {
+        "name": "status",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "creditNoteNumber",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "startDate",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "endDate",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "contact[id]",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "contact[objectName]",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createcreditNote",
+    "method": "POST",
+    "path": "/CreditNote/Factory/saveCreditNote",
+    "tags": [
+      "CreditNote"
+    ],
+    "params": [],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createCreditNoteFromInvoice",
+    "method": "POST",
+    "path": "/CreditNote/Factory/createFromInvoice",
+    "tags": [
+      "CreditNote"
+    ],
+    "params": [],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createCreditNoteFromVoucher",
+    "method": "POST",
+    "path": "/CreditNote/Factory/createFromVoucher",
+    "tags": [
+      "CreditNote"
+    ],
+    "params": [],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getcreditNoteById",
+    "method": "GET",
+    "path": "/CreditNote/{creditNoteId}",
+    "tags": [
+      "CreditNote"
+    ],
+    "params": [
+      {
+        "name": "creditNoteId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "updatecreditNote",
+    "method": "PUT",
+    "path": "/CreditNote/{creditNoteId}",
+    "tags": [
+      "CreditNote"
+    ],
+    "params": [
+      {
+        "name": "creditNoteId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "deletecreditNote",
+    "method": "DELETE",
+    "path": "/CreditNote/{creditNoteId}",
+    "tags": [
+      "CreditNote"
+    ],
+    "params": [
+      {
+        "name": "creditNoteId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "sendCreditNoteByPrinting",
+    "method": "GET",
+    "path": "/CreditNote/{creditNoteId}/sendByWithRender",
+    "tags": [
+      "CreditNote"
+    ],
+    "params": [
+      {
+        "name": "creditNoteId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "sendType",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "creditNoteSendBy",
+    "method": "PUT",
+    "path": "/CreditNote/{creditNoteId}/sendBy",
+    "tags": [
+      "CreditNote"
+    ],
+    "params": [
+      {
+        "name": "creditNoteId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "creditNoteEnshrine",
+    "method": "PUT",
+    "path": "/CreditNote/{creditNoteId}/enshrine",
+    "tags": [
+      "CreditNote"
+    ],
+    "params": [
+      {
+        "name": "creditNoteId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "422",
+      "500"
+    ]
+  },
+  {
+    "operationId": "creditNoteGetPdf",
+    "method": "GET",
+    "path": "/CreditNote/{creditNoteId}/getPdf",
+    "tags": [
+      "CreditNote"
+    ],
+    "params": [
+      {
+        "name": "creditNoteId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "download",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "preventSendBy",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "sendCreditNoteViaEMail",
+    "method": "POST",
+    "path": "/CreditNote/{creditNoteId}/sendViaEmail",
+    "tags": [
+      "CreditNote"
+    ],
+    "params": [
+      {
+        "name": "creditNoteId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "bookCreditNote",
+    "method": "PUT",
+    "path": "/CreditNote/{creditNoteId}/bookAmount",
+    "tags": [
+      "CreditNote"
+    ],
+    "params": [
+      {
+        "name": "creditNoteId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "creditNoteResetToOpen",
+    "method": "PUT",
+    "path": "/CreditNote/{creditNoteId}/resetToOpen",
+    "tags": [
+      "CreditNote"
+    ],
+    "params": [
+      {
+        "name": "creditNoteId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "422",
+      "500"
+    ]
+  },
+  {
+    "operationId": "creditNoteResetToDraft",
+    "method": "PUT",
+    "path": "/CreditNote/{creditNoteId}/resetToDraft",
+    "tags": [
+      "CreditNote"
+    ],
+    "params": [
+      {
+        "name": "creditNoteId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "422",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getcreditNotePositions",
+    "method": "GET",
+    "path": "/CreditNotePos",
+    "tags": [
+      "CreditNotePos"
+    ],
+    "params": [
+      {
+        "name": "creditNote[id]",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "creditNote[objectName]",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "updateExportConfig",
+    "method": "PUT",
+    "path": "/SevClient/{SevClientId}/updateExportConfig",
+    "tags": [
+      "Export"
+    ],
+    "params": [
+      {
+        "name": "SevClientId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "exportDatevDepricated",
+    "method": "GET",
+    "path": "/Export/datevCSV",
+    "tags": [
+      "Export"
+    ],
+    "params": [
+      {
+        "name": "Download",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "startDate",
+        "in": "query",
+        "required": true
+      },
+      {
+        "name": "endDate",
+        "in": "query",
+        "required": true
+      },
+      {
+        "name": "scope",
+        "in": "query",
+        "required": true
+      },
+      {
+        "name": "withUnpaidDocuments",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "withEnshrinedDocuments",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "enshrine",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "exportDatevCSV",
+    "method": "GET",
+    "path": "/Export/createDatevCsvZipExportJob",
+    "tags": [
+      "Export"
+    ],
+    "params": [
+      {
+        "name": "startDate",
+        "in": "query",
+        "required": true
+      },
+      {
+        "name": "endDate",
+        "in": "query",
+        "required": true
+      },
+      {
+        "name": "scope",
+        "in": "query",
+        "required": true
+      },
+      {
+        "name": "exportByPaydate",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "includeEnshrined",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "enshrineDocuments",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "includeDocumentImages",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "exportDatevXML",
+    "method": "GET",
+    "path": "/Export/createDatevXmlZipExportJob",
+    "tags": [
+      "Export"
+    ],
+    "params": [
+      {
+        "name": "startDate",
+        "in": "query",
+        "required": true
+      },
+      {
+        "name": "endDate",
+        "in": "query",
+        "required": true
+      },
+      {
+        "name": "scope",
+        "in": "query",
+        "required": true
+      },
+      {
+        "name": "exportByPaydate",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "includeEnshrined",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "includeExportedDocuments",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "includeDocumentXml",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "generateDownloadHash",
+    "method": "GET",
+    "path": "/Progress/generateDownloadHash",
+    "tags": [
+      "Export"
+    ],
+    "params": [
+      {
+        "name": "jobId",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getProgress",
+    "method": "GET",
+    "path": "/Progress/getProgress",
+    "tags": [
+      "Export"
+    ],
+    "params": [
+      {
+        "name": "hash",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "jobDownloadInfo",
+    "method": "GET",
+    "path": "/ExportJob/jobDownloadInfo",
+    "tags": [
+      "Export"
+    ],
+    "params": [
+      {
+        "name": "jobId",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "exportInvoice",
+    "method": "GET",
+    "path": "/Export/invoiceCsv",
+    "tags": [
+      "Export"
+    ],
+    "params": [
+      {
+        "name": "download",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "sevQuery",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "exportInvoiceZip",
+    "method": "GET",
+    "path": "/Export/invoiceZip",
+    "tags": [
+      "Export"
+    ],
+    "params": [
+      {
+        "name": "download",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "sevQuery",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "exportCreditNote",
+    "method": "GET",
+    "path": "/Export/creditNoteCsv",
+    "tags": [
+      "Export"
+    ],
+    "params": [
+      {
+        "name": "download",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "sevQuery",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "exportVoucher",
+    "method": "GET",
+    "path": "/Export/voucherListCsv",
+    "tags": [
+      "Export"
+    ],
+    "params": [
+      {
+        "name": "download",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "sevQuery",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "exportTransactions",
+    "method": "GET",
+    "path": "/Export/transactionsCsv",
+    "tags": [
+      "Export"
+    ],
+    "params": [
+      {
+        "name": "download",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "sevQuery",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "exportVoucherZip",
+    "method": "GET",
+    "path": "/Export/voucherZip",
+    "tags": [
+      "Export"
+    ],
+    "params": [
+      {
+        "name": "download",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "sevQuery",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "exportContact",
+    "method": "GET",
+    "path": "/Export/contactListCsv",
+    "tags": [
+      "Export"
+    ],
+    "params": [
+      {
+        "name": "download",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "sevQuery",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getParts",
+    "method": "GET",
+    "path": "/Part",
+    "tags": [
+      "Part"
+    ],
+    "params": [
+      {
+        "name": "partNumber",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "name",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createPart",
+    "method": "POST",
+    "path": "/Part",
+    "tags": [
+      "Part"
+    ],
+    "params": [],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getPartById",
+    "method": "GET",
+    "path": "/Part/{partId}",
+    "tags": [
+      "Part"
+    ],
+    "params": [
+      {
+        "name": "partId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "updatePart",
+    "method": "PUT",
+    "path": "/Part/{partId}",
+    "tags": [
+      "Part"
+    ],
+    "params": [
+      {
+        "name": "partId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "partGetStock",
+    "method": "GET",
+    "path": "/Part/{partId}/getStock",
+    "tags": [
+      "Part"
+    ],
+    "params": [
+      {
+        "name": "partId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getInvoices",
+    "method": "GET",
+    "path": "/Invoice",
+    "tags": [
+      "Invoice"
+    ],
+    "params": [
+      {
+        "name": "status",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "invoiceNumber",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "startDate",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "endDate",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "contact[id]",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "contact[objectName]",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createInvoiceByFactory",
+    "method": "POST",
+    "path": "/Invoice/Factory/saveInvoice",
+    "tags": [
+      "Invoice"
+    ],
+    "params": [],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getInvoiceById",
+    "method": "GET",
+    "path": "/Invoice/{invoiceId}",
+    "tags": [
+      "Invoice"
+    ],
+    "params": [
+      {
+        "name": "invoiceId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getInvoicePositionsById",
+    "method": "GET",
+    "path": "/Invoice/{invoiceId}/getPositions",
+    "tags": [
+      "Invoice"
+    ],
+    "params": [
+      {
+        "name": "invoiceId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "offset",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "embed",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createInvoiceFromOrder",
+    "method": "POST",
+    "path": "/Invoice/Factory/createInvoiceFromOrder",
+    "tags": [
+      "Invoice"
+    ],
+    "params": [],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createInvoiceReminder",
+    "method": "POST",
+    "path": "/Invoice/Factory/createInvoiceReminder",
+    "tags": [
+      "Invoice"
+    ],
+    "params": [
+      {
+        "name": "invoice[id]",
+        "in": "query",
+        "required": true
+      },
+      {
+        "name": "invoice[objectName]",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getIsInvoicePartiallyPaid",
+    "method": "GET",
+    "path": "/Invoice/{invoiceId}/getIsPartiallyPaid",
+    "tags": [
+      "Invoice"
+    ],
+    "params": [
+      {
+        "name": "invoiceId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "cancelInvoice",
+    "method": "POST",
+    "path": "/Invoice/{invoiceId}/cancelInvoice",
+    "tags": [
+      "Invoice"
+    ],
+    "params": [
+      {
+        "name": "invoiceId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "invoiceRender",
+    "method": "POST",
+    "path": "/Invoice/{invoiceId}/render",
+    "tags": [
+      "Invoice"
+    ],
+    "params": [
+      {
+        "name": "invoiceId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "sendInvoiceViaEMail",
+    "method": "POST",
+    "path": "/Invoice/{invoiceId}/sendViaEmail",
+    "tags": [
+      "Invoice"
+    ],
+    "params": [
+      {
+        "name": "invoiceId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "invoiceGetPdf",
+    "method": "GET",
+    "path": "/Invoice/{invoiceId}/getPdf",
+    "tags": [
+      "Invoice"
+    ],
+    "params": [
+      {
+        "name": "invoiceId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "download",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "preventSendBy",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "invoiceGetXml",
+    "method": "GET",
+    "path": "/Invoice/{invoiceId}/getXml",
+    "tags": [
+      "Invoice"
+    ],
+    "params": [
+      {
+        "name": "invoiceId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "invoiceSendBy",
+    "method": "PUT",
+    "path": "/Invoice/{invoiceId}/sendBy",
+    "tags": [
+      "Invoice"
+    ],
+    "params": [
+      {
+        "name": "invoiceId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "invoiceEnshrine",
+    "method": "PUT",
+    "path": "/Invoice/{invoiceId}/enshrine",
+    "tags": [
+      "Invoice"
+    ],
+    "params": [
+      {
+        "name": "invoiceId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "422",
+      "500"
+    ]
+  },
+  {
+    "operationId": "bookInvoice",
+    "method": "PUT",
+    "path": "/Invoice/{invoiceId}/bookAmount",
+    "tags": [
+      "Invoice"
+    ],
+    "params": [
+      {
+        "name": "invoiceId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "invoiceResetToOpen",
+    "method": "PUT",
+    "path": "/Invoice/{invoiceId}/resetToOpen",
+    "tags": [
+      "Invoice"
+    ],
+    "params": [
+      {
+        "name": "invoiceId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "422",
+      "500"
+    ]
+  },
+  {
+    "operationId": "invoiceResetToDraft",
+    "method": "PUT",
+    "path": "/Invoice/{invoiceId}/resetToDraft",
+    "tags": [
+      "Invoice"
+    ],
+    "params": [
+      {
+        "name": "invoiceId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "422",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getInvoicePos",
+    "method": "GET",
+    "path": "/InvoicePos",
+    "tags": [
+      "InvoicePos"
+    ],
+    "params": [
+      {
+        "name": "id",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "invoice[id]",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "invoice[objectName]",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "part[id]",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "part[objectName]",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getLetterpapersWithThumb",
+    "method": "GET",
+    "path": "/DocServer/getLetterpapersWithThumb",
+    "tags": [
+      "Layout"
+    ],
+    "params": [],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getTemplates",
+    "method": "GET",
+    "path": "/DocServer/getTemplatesWithThumb",
+    "tags": [
+      "Layout"
+    ],
+    "params": [
+      {
+        "name": "type",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "updateInvoiceTemplate",
+    "method": "PUT",
+    "path": "/Invoice/{invoiceId}/changeParameter",
+    "tags": [
+      "Layout"
+    ],
+    "params": [
+      {
+        "name": "invoiceId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "updateOrderTemplate",
+    "method": "PUT",
+    "path": "/Order/{orderId}/changeParameter",
+    "tags": [
+      "Layout"
+    ],
+    "params": [
+      {
+        "name": "orderId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "updateCreditNoteTemplate",
+    "method": "PUT",
+    "path": "/CreditNote/{creditNoteId}/changeParameter",
+    "tags": [
+      "Layout"
+    ],
+    "params": [
+      {
+        "name": "creditNoteId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getOrders",
+    "method": "GET",
+    "path": "/Order",
+    "tags": [
+      "Order"
+    ],
+    "params": [
+      {
+        "name": "status",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "orderNumber",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "startDate",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "endDate",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "contact[id]",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "contact[objectName]",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createOrder",
+    "method": "POST",
+    "path": "/Order/Factory/saveOrder",
+    "tags": [
+      "Order"
+    ],
+    "params": [],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getOrderById",
+    "method": "GET",
+    "path": "/Order/{orderId}",
+    "tags": [
+      "Order"
+    ],
+    "params": [
+      {
+        "name": "orderId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "updateOrder",
+    "method": "PUT",
+    "path": "/Order/{orderId}",
+    "tags": [
+      "Order"
+    ],
+    "params": [
+      {
+        "name": "orderId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "deleteOrder",
+    "method": "DELETE",
+    "path": "/Order/{orderId}",
+    "tags": [
+      "Order"
+    ],
+    "params": [
+      {
+        "name": "orderId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getOrderPositionsById",
+    "method": "GET",
+    "path": "/Order/{orderId}/getPositions",
+    "tags": [
+      "Order"
+    ],
+    "params": [
+      {
+        "name": "orderId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "offset",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "embed",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getDiscounts",
+    "method": "GET",
+    "path": "/Order/{orderId}/getDiscounts",
+    "tags": [
+      "Order"
+    ],
+    "params": [
+      {
+        "name": "orderId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "offset",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "embed",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getRelatedObjects",
+    "method": "GET",
+    "path": "/Order/{orderId}/getRelatedObjects",
+    "tags": [
+      "Order"
+    ],
+    "params": [
+      {
+        "name": "orderId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "includeItself",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "sortByType",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "embed",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "sendorderViaEMail",
+    "method": "POST",
+    "path": "/Order/{orderId}/sendViaEmail",
+    "tags": [
+      "Order"
+    ],
+    "params": [
+      {
+        "name": "orderId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createPackingListFromOrder",
+    "method": "POST",
+    "path": "/Order/Factory/createPackingListFromOrder",
+    "tags": [
+      "Order"
+    ],
+    "params": [
+      {
+        "name": "order[id]",
+        "in": "query",
+        "required": true
+      },
+      {
+        "name": "order[objectName]",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createContractNoteFromOrder",
+    "method": "POST",
+    "path": "/Order/Factory/createContractNoteFromOrder",
+    "tags": [
+      "Order"
+    ],
+    "params": [
+      {
+        "name": "order[id]",
+        "in": "query",
+        "required": true
+      },
+      {
+        "name": "order[objectName]",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "orderGetPdf",
+    "method": "GET",
+    "path": "/Order/{orderId}/getPdf",
+    "tags": [
+      "Order"
+    ],
+    "params": [
+      {
+        "name": "orderId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "download",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "preventSendBy",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "orderSendBy",
+    "method": "PUT",
+    "path": "/Order/{orderId}/sendBy",
+    "tags": [
+      "Order"
+    ],
+    "params": [
+      {
+        "name": "orderId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getOrderPositions",
+    "method": "GET",
+    "path": "/OrderPos",
+    "tags": [
+      "OrderPos"
+    ],
+    "params": [
+      {
+        "name": "order[id]",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "order[objectName]",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getOrderPositionById",
+    "method": "GET",
+    "path": "/OrderPos/{orderPosId}",
+    "tags": [
+      "OrderPos"
+    ],
+    "params": [
+      {
+        "name": "orderPosId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "updateOrderPosition",
+    "method": "PUT",
+    "path": "/OrderPos/{orderPosId}",
+    "tags": [
+      "OrderPos"
+    ],
+    "params": [
+      {
+        "name": "orderPosId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "deleteOrderPos",
+    "method": "DELETE",
+    "path": "/OrderPos/{orderPosId}",
+    "tags": [
+      "OrderPos"
+    ],
+    "params": [
+      {
+        "name": "orderPosId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "voucherFactorySaveVoucher",
+    "method": "POST",
+    "path": "/Voucher/Factory/saveVoucher",
+    "tags": [
+      "Voucher"
+    ],
+    "params": [],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "422",
+      "500"
+    ]
+  },
+  {
+    "operationId": "voucherUploadFile",
+    "method": "POST",
+    "path": "/Voucher/Factory/uploadTempFile",
+    "tags": [
+      "Voucher"
+    ],
+    "params": [],
+    "responseCodes": [
+      "201",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getVouchers",
+    "method": "GET",
+    "path": "/Voucher",
+    "tags": [
+      "Voucher"
+    ],
+    "params": [
+      {
+        "name": "status",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "creditDebit",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "descriptionLike",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "startDate",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "endDate",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "contact[id]",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "contact[objectName]",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getVoucherById",
+    "method": "GET",
+    "path": "/Voucher/{voucherId}",
+    "tags": [
+      "Voucher"
+    ],
+    "params": [
+      {
+        "name": "voucherId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "updateVoucher",
+    "method": "PUT",
+    "path": "/Voucher/{voucherId}",
+    "tags": [
+      "Voucher"
+    ],
+    "params": [
+      {
+        "name": "voucherId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "voucherEnshrine",
+    "method": "PUT",
+    "path": "/Voucher/{voucherId}/enshrine",
+    "tags": [
+      "Voucher"
+    ],
+    "params": [
+      {
+        "name": "voucherId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "422",
+      "500"
+    ]
+  },
+  {
+    "operationId": "bookVoucher",
+    "method": "PUT",
+    "path": "/Voucher/{voucherId}/bookAmount",
+    "tags": [
+      "Voucher"
+    ],
+    "params": [
+      {
+        "name": "voucherId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "voucherResetToOpen",
+    "method": "PUT",
+    "path": "/Voucher/{voucherId}/resetToOpen",
+    "tags": [
+      "Voucher"
+    ],
+    "params": [
+      {
+        "name": "voucherId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "422",
+      "500"
+    ]
+  },
+  {
+    "operationId": "voucherResetToDraft",
+    "method": "PUT",
+    "path": "/Voucher/{voucherId}/resetToDraft",
+    "tags": [
+      "Voucher"
+    ],
+    "params": [
+      {
+        "name": "voucherId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "422",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getVoucherPositions",
+    "method": "GET",
+    "path": "/VoucherPos",
+    "tags": [
+      "VoucherPos"
+    ],
+    "params": [
+      {
+        "name": "voucher[id]",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "voucher[objectName]",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "forAllAccounts",
+    "method": "GET",
+    "path": "/ReceiptGuidance/forAllAccounts",
+    "tags": [
+      "Voucher"
+    ],
+    "params": [],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "forAccountNumber",
+    "method": "GET",
+    "path": "/ReceiptGuidance/forAccountNumber",
+    "tags": [
+      "Voucher"
+    ],
+    "params": [
+      {
+        "name": "accountNumber",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "401",
+      "422",
+      "500"
+    ]
+  },
+  {
+    "operationId": "forTaxRule",
+    "method": "GET",
+    "path": "/ReceiptGuidance/forTaxRule",
+    "tags": [
+      "Voucher"
+    ],
+    "params": [
+      {
+        "name": "taxRule",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "401",
+      "422",
+      "500"
+    ]
+  },
+  {
+    "operationId": "forRevenue",
+    "method": "GET",
+    "path": "/ReceiptGuidance/forRevenue",
+    "tags": [
+      "Voucher"
+    ],
+    "params": [],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "forExpense",
+    "method": "GET",
+    "path": "/ReceiptGuidance/forExpense",
+    "tags": [
+      "Voucher"
+    ],
+    "params": [],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "reportInvoice",
+    "method": "GET",
+    "path": "/Report/invoicelist",
+    "tags": [
+      "Report"
+    ],
+    "params": [
+      {
+        "name": "download",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "view",
+        "in": "query",
+        "required": true
+      },
+      {
+        "name": "sevQuery",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "reportOrder",
+    "method": "GET",
+    "path": "/Report/orderlist",
+    "tags": [
+      "Report"
+    ],
+    "params": [
+      {
+        "name": "download",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "view",
+        "in": "query",
+        "required": true
+      },
+      {
+        "name": "sevQuery",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "reportContact",
+    "method": "GET",
+    "path": "/Report/contactlist",
+    "tags": [
+      "Report"
+    ],
+    "params": [
+      {
+        "name": "download",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "sevQuery",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "reportVoucher",
+    "method": "GET",
+    "path": "/Report/voucherlist",
+    "tags": [
+      "Report"
+    ],
+    "params": [
+      {
+        "name": "download",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "sevQuery",
+        "in": "query",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getTags",
+    "method": "GET",
+    "path": "/Tag",
+    "tags": [
+      "Tag"
+    ],
+    "params": [
+      {
+        "name": "id",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "name",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getTagById",
+    "method": "GET",
+    "path": "/Tag/{tagId}",
+    "tags": [
+      "Tag"
+    ],
+    "params": [
+      {
+        "name": "tagId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "updateTag",
+    "method": "PUT",
+    "path": "/Tag/{tagId}",
+    "tags": [
+      "Tag"
+    ],
+    "params": [
+      {
+        "name": "tagId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "deleteTag",
+    "method": "DELETE",
+    "path": "/Tag/{tagId}",
+    "tags": [
+      "Tag"
+    ],
+    "params": [
+      {
+        "name": "tagId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "responseCodes": [
+      "200",
+      "400",
+      "401",
+      "409",
+      "500"
+    ]
+  },
+  {
+    "operationId": "createTag",
+    "method": "POST",
+    "path": "/Tag/Factory/create",
+    "tags": [
+      "Tag"
+    ],
+    "params": [],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  },
+  {
+    "operationId": "getTagRelations",
+    "method": "GET",
+    "path": "/TagRelation",
+    "tags": [
+      "Tag"
+    ],
+    "params": [],
+    "responseCodes": [
+      "200",
+      "401",
+      "500"
+    ]
+  }
+]

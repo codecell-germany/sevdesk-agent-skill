@@ -1,0 +1,34 @@
+{
+  "contactCustomerNumberAvailabilityCheck": {
+    "runtimeRequiredQuery": ["customerNumber"],
+    "notes": "Without customerNumber, endpoint can return HTTP 500 although spec marks it optional."
+  },
+  "getContactTabsItemCountById": {
+    "unwrapObjects": true,
+    "notes": "Actual payload is wrapped in data.objects while spec shows direct fields."
+  },
+  "partGetStock": {
+    "coerceObjectsNumber": true,
+    "notes": "objects is returned as numeric string instead of integer."
+  },
+  "invoiceGetPdf": {
+    "unwrapObjects": true,
+    "notes": "Response is wrapped in data.objects instead of top-level document fields."
+  },
+  "orderGetPdf": {
+    "unwrapObjects": true,
+    "notes": "Response is wrapped in data.objects instead of top-level document fields."
+  },
+  "getLetterpapersWithThumb": {
+    "unwrapObjects": true,
+    "notes": "Response is wrapped in data.objects instead of result/letterpapers top-level fields."
+  },
+  "getTemplates": {
+    "unwrapObjects": true,
+    "notes": "Response is wrapped in data.objects instead of result/templates top-level fields."
+  },
+  "forAccountNumber": {
+    "coerceObjectsArray": true,
+    "notes": "objects can be object instead of expected array."
+  }
+}
