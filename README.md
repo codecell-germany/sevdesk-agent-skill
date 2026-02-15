@@ -117,6 +117,9 @@ This installs (copies) the skill into your Codex skills folder:
 npx -y @codecell-germany/sevdesk-agent-skill install
 ```
 
+If you run this from inside this repo folder and see `sevdesk-agent-skill: command not found`,
+run the command from a different directory (e.g. `cd ~`) and try again.
+
 Update/overwrite:
 ```bash
 npx -y @codecell-germany/sevdesk-agent-skill install --force
