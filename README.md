@@ -57,6 +57,9 @@ npm link
 sevdesk-agent --help
 ```
 
+Full operation catalog (operationId -> HTTP method/path):
+- `OPERATIONS.md`
+
 List read-only operations:
 ```bash
 sevdesk-agent ops list --read-only
