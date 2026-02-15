@@ -111,6 +111,17 @@ The key idea for all coding agents is the same:
 2. Provide `SEVDESK_API_TOKEN` in the agent environment.
 3. Instruct the agent to use the CLI as the only interface to sevdesk and to stay read-first.
 
+### Install Skill via npx (recommended)
+This installs (copies) the skill into your Codex skills folder:
+```bash
+npx -y @codecell-germany/sevdesk-agent-skill install
+```
+
+Update/overwrite:
+```bash
+npx -y @codecell-germany/sevdesk-agent-skill install --force
+```
+
 ### Codex CLI
 1. Build the repo:
 ```bash
@@ -163,6 +174,24 @@ Gemini CLI can be used with tools/terminal access depending on your setup. Recom
 1. Build + optionally `npm link` as above.
 2. Provide `SEVDESK_API_TOKEN` in the environment.
 3. Paste/attach `skills/sevdesk-agent-cli/SKILL.md` as the system/project instruction for the session and require all sevdesk interactions to go through `sevdesk-agent`.
+
+## Maintainers: Publish to npm
+Publishing requires npm 2FA (OTP) enabled for publish operations.
+
+1. Ensure you are logged in:
+```bash
+npm whoami
+```
+
+2. Publish (will prompt for OTP if required):
+```bash
+npm publish
+```
+
+Or explicitly:
+```bash
+npm publish --otp=123456
+```
 
 ## Disclaimer
 This project is not affiliated with sevdesk. "sevdesk" is a trademark of its respective owner.
