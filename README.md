@@ -5,8 +5,13 @@ Skill and CLI for safely operating the sevdesk API with coding agents.
 ## Features
 - Operation catalog (`ops list`, `op-show`) derived from sevdesk OpenAPI data (checked into `src/data/operations.json`).
 - Read-first workflow: `read <operationId>` runs only `GET`.
+- `find-contact <term>` with local scoring (`name`, `name2`, `surename`, `familyname`, `customerNumber`) for reproducible lookup.
 - Guarded writes: `write <operationId>` is blocked unless you explicitly confirm execution.
+- Preflight validation for `createContact` and `createOrder` with clear local error messages.
+- Optional post-write verification via `write ... --verify` (read-only checks).
 - Runtime quirks: `ops-quirks` + optional response normalization for known deviations.
+- Safe PDF mode: `orderGetPdf` / `invoiceGetPdf` automatically use `preventSendBy=1` unless disabled.
+- Direct PDF decode: `read ... --decode-pdf <path>`.
 - Agent handoff context: `context snapshot` emits a deterministic JSON snapshot to `stdout` (optional `--output` file).
 
 ## Install Skill (Recommended: skills.sh CLI)
@@ -79,12 +84,18 @@ npm link
 sevdesk-agent --help
 ```
 
+If the wrapper is not executable (`permission denied`), run:
+```bash
+node dist/index.js <command> ...
+```
+
 ### CLI Commands (overview)
 - `ops list`: list operations from the OpenAPI-derived catalog (filters: `--read-only`, `--method`, `--tag`, `--json`)
 - `ops-quirks`: list known runtime quirks and normalizations
 - `op-show <operationId>`: show method/path/params (+ runtime quirk)
-- `read <operationId>`: execute GET operation (supports `--path`, `--query`, `--header`, `--normalize`, `--output`, `--save`)
-- `write <operationId>`: execute non-GET with guards (`--execute`, `--confirm-execute yes`, `--allow-write`/`SEVDESK_ALLOW_WRITE=true`)
+- `read <operationId>`: execute GET operation (supports `--path`, `--query`, `--header`, `--normalize`, `--safe-pdf`, `--decode-pdf`, `--output`, `--save`)
+- `find-contact <term>`: local fuzzy/scored contact lookup based on full contact list
+- `write <operationId>`: execute non-GET with guards (`--execute`, `--confirm-execute yes`, `--allow-write`/`SEVDESK_ALLOW_WRITE=true`, `--verify`)
 - `docs usage`: short read-only usage guide
 - `docs read-ops`: generate `knowledge/READ_OPERATIONS.md` from the catalog
 - `context snapshot`: capture a deterministic read-only context snapshot
@@ -105,6 +116,16 @@ sevdesk-agent ops list --read-only
 Read an endpoint (GET only):
 ```bash
 sevdesk-agent read getInvoices --output json
+```
+
+Read + decode PDF in one command (safe mode on by default):
+```bash
+sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer.pdf --output json
+```
+
+Find contact locally with scoring:
+```bash
+sevdesk-agent find-contact "nikolas gottschol" --output json
 ```
 
 Generate a full read-only operation reference (Markdown):

@@ -11,7 +11,7 @@
   },
   "scripts": {
     "clean": "node scripts/clean.js",
-    "build": "npm run clean && tsc -p tsconfig.json",
+    "build": "npm run clean && tsc -p tsconfig.json && node scripts/ensure-executable.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run tests/unit",
     "test:unit": "vitest run tests/unit",
