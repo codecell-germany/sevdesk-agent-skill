@@ -16,11 +16,23 @@ import { assertWriteAllowed } from "./lib/guards";
 import { parseKeyValuePairs, readJsonFile, toPrettyJson } from "./lib/kv";
 import { resolvePathTemplate } from "./lib/path";
 import {
+  applySafePdfQueryDefaults,
+  decodePdfToFile,
+  extractBase64PdfContent,
+  shouldAutoProtectPdf,
+} from "./lib/pdf";
+import { validateWritePreflight } from "./lib/preflight";
+import {
   getOperationQuirk,
   listOperationQuirks,
   normalizeReadData,
   validateRuntimeReadQuery,
 } from "./lib/quirks";
+import {
+  extractContactsFromListResponse,
+  findContacts,
+} from "./lib/find-contact";
+import { runWriteVerification } from "./lib/verify";
 import { renderReadOperationsMarkdown, renderReadUsageText } from "./lib/docs";
 import type { SevdeskResponse } from "./lib/types";
 
@@ -160,6 +172,16 @@ program
   .option("--x-version <version>", "Optional sevdesk X-Version header")
   .option("--normalize", "Apply known runtime response normalization", true)
   .option("--no-normalize", "Disable response normalization")
+  .option(
+    "--safe-pdf",
+    "For orderGetPdf/invoiceGetPdf automatically apply preventSendBy=1 unless explicitly set",
+    true
+  )
+  .option("--no-safe-pdf", "Disable automatic preventSendBy protection")
+  .option(
+    "--decode-pdf <file>",
+    "For orderGetPdf/invoiceGetPdf: decode base64 PDF content and write directly to file"
+  )
   .option("--output <mode>", "pretty|json|raw", "pretty")
   .option("--save <file>", "Save full response to file")
   .addHelpText(
@@ -182,8 +204,21 @@ program
     }
 
     const pathParams = parseKeyValuePairs(opts.path ?? []);
-    const queryParams = parseKeyValuePairs(opts.query ?? []);
+    const queryParamsInput = parseKeyValuePairs(opts.query ?? []);
     const headerParams = parseKeyValuePairs(opts.header ?? []);
+
+    if (opts.decodePdf && !shouldAutoProtectPdf(operationId)) {
+      fail("--decode-pdf is currently supported only for orderGetPdf and invoiceGetPdf.");
+    }
+
+    const {
+      query: queryParams,
+      applied: safePdfApplied,
+    } = applySafePdfQueryDefaults(
+      operationId,
+      queryParamsInput,
+      Boolean(opts.safePdf)
+    );
     const missingRuntimeQuery = validateRuntimeReadQuery(operationId, queryParams);
     if (missingRuntimeQuery.length > 0) {
       fail(
@@ -204,17 +239,106 @@ program
       headers: headerParams,
     });
 
+    const extras: Record<string, unknown> = {};
+    if (safePdfApplied) {
+      extras.safePdfApplied = true;
+      extras.safePdfQuery = { preventSendBy: "1" };
+    }
+
     if (!opts.normalize) {
-      await printResponse(response, opts.output, opts.save);
+      if (opts.decodePdf) {
+        const base64Content = extractBase64PdfContent(response.data);
+        if (!base64Content) {
+          fail(
+            "No base64 PDF content found in API response. Use --output json to inspect raw payload."
+          );
+        }
+        extras.decodedPdfPath = await decodePdfToFile(opts.decodePdf, base64Content);
+      }
+
+      await printResponse(response, opts.output, opts.save, extras);
       return;
     }
 
     const normalization = normalizeReadData(operationId, response.data);
+    if (opts.decodePdf) {
+      const base64Content =
+        extractBase64PdfContent(normalization.normalizedData) ??
+        extractBase64PdfContent(response.data);
+      if (!base64Content) {
+        fail(
+          "No base64 PDF content found in API response. Use --output json to inspect raw payload."
+        );
+      }
+      extras.decodedPdfPath = await decodePdfToFile(opts.decodePdf, base64Content);
+    }
+
     await printResponse(response, opts.output, opts.save, {
+      ...extras,
       normalizedData: normalization.normalizedData,
       normalizationWarnings: normalization.warnings,
       runtimeQuirk: getOperationQuirk(operationId) ?? null,
     });
+  });
+
+program
+  .command("find-contact <term>")
+  .description(
+    "Find contacts by local scoring across name/name2/surename/familyname/customerNumber"
+  )
+  .option("--limit <n>", "Maximum matches", "20")
+  .option("--output <mode>", "pretty|json", "pretty")
+  .option("--x-version <version>", "Optional sevdesk X-Version header")
+  .action(async (term: string, opts) => {
+    const limit = Number.parseInt(String(opts.limit), 10);
+    if (!Number.isFinite(limit) || limit < 1) {
+      fail("--limit must be an integer >= 1.");
+    }
+
+    if (opts.output !== "pretty" && opts.output !== "json") {
+      fail("--output must be either pretty or json.");
+    }
+
+    const config = loadConfig({ xVersion: opts.xVersion });
+    const client = new SevdeskClient(config);
+    const response = await client.request({
+      method: "GET",
+      path: "/Contact",
+    });
+
+    const contacts = extractContactsFromListResponse(response.data);
+    const matches = findContacts(contacts, term, limit);
+
+    const payload = {
+      ok: response.ok,
+      status: response.status,
+      term,
+      matchCount: matches.length,
+      matches: matches.map((match) => ({
+        score: match.score,
+        id: match.id,
+        displayName: match.displayName,
+        customerNumber: match.customerNumber,
+      })),
+    };
+
+    if (opts.output === "json") {
+      process.stdout.write(`${JSON.stringify(payload)}\n`);
+      return;
+    }
+
+    if (matches.length === 0) {
+      process.stdout.write(`No contacts matched "${term}".\n`);
+      return;
+    }
+
+    const lines = matches.map(
+      (match) =>
+        `${match.score}\t${match.id}\t${match.displayName}\t${match.customerNumber || "-"}`
+    );
+    process.stdout.write(
+      `${`score\tid\tdisplayName\tcustomerNumber`}\n${lines.join("\n")}\n`
+    );
   });
 
 const docs = program.command("docs").description("Documentation helpers");
@@ -267,6 +391,17 @@ program
   .option("--execute", "Enable non-read execution", false)
   .option("--confirm-execute <value>", "Must be 'yes'", "")
   .option("--allow-write", "Allow writes without env flag", false)
+  .option(
+    "--preflight",
+    "Validate payload for supported write operations before API call",
+    true
+  )
+  .option("--no-preflight", "Disable local preflight validation")
+  .option(
+    "--verify",
+    "After write, run read-only verification checks for supported operations",
+    false
+  )
   .option("--output <mode>", "pretty|json|raw", "pretty")
   .option("--save <file>", "Save full response to file")
   .action(async (operationId: string, opts) => {
@@ -275,13 +410,6 @@ program
     const config = loadConfig({
       xVersion: opts.xVersion,
       allowWriteOverride: Boolean(opts.allowWrite),
-    });
-
-    assertWriteAllowed({
-      method: operation.method,
-      execute: Boolean(opts.execute),
-      confirmExecute: opts.confirmExecute,
-      allowWrite: config.allowWrite,
     });
 
     const pathParams = parseKeyValuePairs(opts.path ?? []);
@@ -297,6 +425,32 @@ program
       body = JSON.parse(opts.bodyJson);
     }
 
+    if (opts.preflight) {
+      const preflight = validateWritePreflight(operationId, body);
+      if (preflight.errors.length > 0) {
+        fail(
+          [
+            `Preflight validation failed for ${operationId}:`,
+            ...preflight.errors.map((error) => `- ${error}`),
+          ].join("\n")
+        );
+      }
+      if (preflight.warnings.length > 0) {
+        process.stderr.write(
+          `${preflight.warnings
+            .map((warning: string) => `[sevdesk-agent] preflight warning: ${warning}`)
+            .join("\n")}\n`
+        );
+      }
+    }
+
+    assertWriteAllowed({
+      method: operation.method,
+      execute: Boolean(opts.execute),
+      confirmExecute: opts.confirmExecute,
+      allowWrite: config.allowWrite,
+    });
+
     const client = new SevdeskClient(config);
     const response = await client.request({
       method: operation.method,
@@ -306,7 +460,32 @@ program
       body,
     });
 
-    await printResponse(response, opts.output, opts.save);
+    const extras: Record<string, unknown> = {};
+    if (opts.verify) {
+      try {
+        const verification = await runWriteVerification({
+          operationId,
+          client,
+          body,
+          writeResponse: response,
+        });
+        if (verification) {
+          extras.verification = verification;
+        } else {
+          extras.verification = {
+            skipped: true,
+            reason: `No built-in verification for ${operationId}`,
+          };
+        }
+      } catch (error) {
+        extras.verification = {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }
+
+    await printResponse(response, opts.output, opts.save, extras);
   });
 
 program
@@ -374,5 +553,8 @@ program
 
 program.parseAsync(process.argv).catch((error) => {
   process.stderr.write(`[sevdesk-agent] ${error.message}\n`);
+  process.stderr.write(
+    "[sevdesk-agent] Hint: if the wrapper is not executable, run `node dist/index.js <command>`.\n"
+  );
   process.exitCode = 1;
 });
