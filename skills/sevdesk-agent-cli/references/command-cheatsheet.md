@@ -11,6 +11,7 @@ npm run build
 sevdesk-agent ops list --read-only
 sevdesk-agent op-show getInvoices
 sevdesk-agent ops-quirks
+sevdesk-agent ops-quirks --json-array
 ```
 
 ## Read call
@@ -35,14 +36,16 @@ Direct PDF decode:
 sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer.pdf --output json
 ```
 
-## Write call (explicitly guarded)
+## Write call (`POST`/`PUT`/`PATCH` directly)
 ```bash
 sevdesk-agent write createContact \
   --body-file ./payloads/contact.create.json \
-  --execute \
-  --confirm-execute yes \
-  --allow-write \
-  --verify
+  --verify-contact
+```
+
+Disable customerNumber auto-fix while still verifying:
+```bash
+sevdesk-agent write createContact --body-file ./payloads/contact.create.json --verify-contact --no-fix-contact
 ```
 
 Preflight validation runs by default for:
@@ -51,7 +54,21 @@ Preflight validation runs by default for:
 
 Disable preflight (rare):
 ```bash
-sevdesk-agent write createOrder --body-file ./payloads/order.json --no-preflight --execute --confirm-execute yes --allow-write
+sevdesk-agent write createOrder --body-file ./payloads/order.json --no-preflight
+```
+
+## Delete call (guarded)
+```bash
+sevdesk-agent write deleteOrder \
+  --path orderId=12345 \
+  --execute \
+  --confirm-execute yes \
+  --allow-write
+```
+
+Invoice edit workflow (no generic updateInvoice route):
+```bash
+sevdesk-agent docs invoice-edit
 ```
 
 ## Context snapshot for agent continuation

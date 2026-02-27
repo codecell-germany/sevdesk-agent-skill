@@ -8,25 +8,26 @@ interface WriteGuardInput {
 }
 
 export function assertWriteAllowed(input: WriteGuardInput): void {
-  if (input.method === "GET") {
+  // Guard only destructive operations.
+  if (input.method !== "DELETE") {
     return;
   }
 
   if (!input.execute) {
     throw new Error(
-      "Write blocked: add --execute to allow non-read operations."
+      "Delete blocked: add --execute for DELETE operations."
     );
   }
 
   if (input.confirmExecute !== "yes") {
     throw new Error(
-      'Write blocked: add --confirm-execute yes to confirm non-read operations.'
+      "Delete blocked: add --confirm-execute yes to confirm DELETE operations."
     );
   }
 
   if (!input.allowWrite) {
     throw new Error(
-      "Write blocked: set SEVDESK_ALLOW_WRITE=true (or --allow-write) for non-read operations."
+      "Delete blocked: set SEVDESK_ALLOW_WRITE=true (or --allow-write) for DELETE operations."
     );
   }
 }

@@ -1,3 +1,3 @@
 display_name: "sevdesk Agent CLI"
-short_description: "Read-first sevdesk CLI with guarded writes, safe PDF export, verification, and context snapshots"
-default_prompt: "Use sevdesk-agent in read-first mode, prefer find-contact for contact discovery, keep PDF export in safe mode (preventSendBy=1 default), use guarded writes with --verify for createContact/createOrder, and finish with a context snapshot for handoff."
+short_description: "Read-first sevdesk CLI with DELETE guard, safe PDF export, contact auto-verify, and context snapshots"
+default_prompt: "Use sevdesk-agent in read-first mode, prefer find-contact for contact discovery, keep PDF export in safe mode (preventSendBy=1 default), use direct writes with preflight + --verify-contact for createContact and --verify for createOrder, require explicit guard flags only for DELETE operations, use ops-quirks --json-array for stable parsing, and finish with a context snapshot for handoff."
