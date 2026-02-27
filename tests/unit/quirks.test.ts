@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   getOperationQuirk,
+  listOperationQuirkEntries,
   normalizeReadData,
   validateRuntimeReadQuery,
 } from "../../src/lib/quirks";
@@ -62,5 +63,16 @@ describe("runtime quirks", () => {
 
     expect(result.normalizedData).toEqual(raw);
     expect(result.warnings).toEqual([]);
+  });
+
+  it("can return quirks as a sorted array for stable parsing", () => {
+    const entries = listOperationQuirkEntries();
+    expect(entries.length).toBeGreaterThan(0);
+    expect(entries[0]).toHaveProperty("operationId");
+    expect(entries.map((entry) => entry.operationId)).toEqual(
+      [...entries.map((entry) => entry.operationId)].sort((a, b) =>
+        a.localeCompare(b)
+      )
+    );
   });
 });
