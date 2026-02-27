@@ -235,3 +235,34 @@ export function renderReadUsageText(): string {
     "",
   ].join("\n");
 }
+
+export function renderInvoiceEditWorkflowText(): string {
+  return [
+    "Invoice editing workflow guide:",
+    "",
+    "Important:",
+    "- There is no generic `updateInvoice` operation in the current sevdesk API catalog.",
+    "- Available invoice operations are state/action based (e.g. `invoiceResetToOpen`, `invoiceResetToDraft`, `invoiceRender`, `cancelInvoice`).",
+    "",
+    "Recommended workflow (read-first):",
+    "1. Inspect current invoice and positions:",
+    "   sevdesk-agent read getInvoiceById --path invoiceId=<id> --output json",
+    "   sevdesk-agent read getInvoicePositionsById --path invoiceId=<id> --output json",
+    "",
+    "2. If invoice state blocks edits, reset state explicitly:",
+    "   sevdesk-agent write invoiceResetToDraft --path invoiceId=<id>",
+    "   (or `invoiceResetToOpen` depending on process requirements)",
+    "",
+    "3. Apply supported invoice changes via dedicated operations only:",
+    "   - `updateInvoiceTemplate` for parameter/template changes",
+    "   - `invoiceRender` to re-render document after changes",
+    "",
+    "4. If needed, create a corrected replacement flow instead of direct mutation:",
+    "   - reset/cancel according to accounting rules",
+    "   - create a new invoice (e.g. from order/factory endpoint)",
+    "",
+    "Tip:",
+    "- Run `sevdesk-agent ops list --tag Invoice` to see all invoice-specific operations.",
+    "",
+  ].join("\n");
+}

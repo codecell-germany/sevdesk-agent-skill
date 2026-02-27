@@ -24,6 +24,7 @@ import {
 import { validateWritePreflight } from "./lib/preflight";
 import {
   getOperationQuirk,
+  listOperationQuirkEntries,
   listOperationQuirks,
   normalizeReadData,
   validateRuntimeReadQuery,
@@ -32,12 +33,32 @@ import {
   extractContactsFromListResponse,
   findContacts,
 } from "./lib/find-contact";
-import { runWriteVerification } from "./lib/verify";
-import { renderReadOperationsMarkdown, renderReadUsageText } from "./lib/docs";
+import {
+  runWriteVerification,
+  verifyAndMaybeFixCreateContact,
+} from "./lib/verify";
+import {
+  renderInvoiceEditWorkflowText,
+  renderReadOperationsMarkdown,
+  renderReadUsageText,
+} from "./lib/docs";
 import type { SevdeskResponse } from "./lib/types";
 
 function fail(message: string): never {
   throw new Error(message);
+}
+
+function getOperationOrFail(operationId: string) {
+  try {
+    return getOperation(operationId);
+  } catch (error) {
+    if (operationId === "updateInvoice") {
+      fail(
+        "Unknown operationId: updateInvoice. sevdesk has no generic invoice update route in this API catalog. Use `sevdesk-agent docs invoice-edit` for the recommended workflow."
+      );
+    }
+    throw error;
+  }
 }
 
 async function printResponse(
@@ -126,11 +147,22 @@ program
   .command("ops-quirks")
   .description("List runtime quirks learned from live API behavior")
   .option("--json", "Output as JSON", false)
+  .option("--json-array", "Output as sorted array for stable parsing", false)
   .action((opts) => {
+    if (opts.json && opts.jsonArray) {
+      fail("Use either --json or --json-array, not both.");
+    }
+
     const quirks = listOperationQuirks();
+    const quirkEntries = listOperationQuirkEntries();
 
     if (opts.json) {
       process.stdout.write(`${JSON.stringify(quirks)}\n`);
+      return;
+    }
+
+    if (opts.jsonArray) {
+      process.stdout.write(`${JSON.stringify(quirkEntries)}\n`);
       return;
     }
 
@@ -158,7 +190,7 @@ program
   .command("op-show <operationId>")
   .description("Show operation details")
   .action((operationId: string) => {
-    const operation = getOperation(operationId);
+    const operation = getOperationOrFail(operationId);
     const quirk = getOperationQuirk(operationId) ?? null;
     process.stdout.write(`${toPrettyJson({ ...operation, runtimeQuirk: quirk })}\n`);
   });
@@ -198,7 +230,7 @@ program
     ].join("\n")
   )
   .action(async (operationId: string, opts) => {
-    const operation = getOperation(operationId);
+    const operation = getOperationOrFail(operationId);
     if (operation.method !== "GET") {
       fail(`Operation ${operationId} is ${operation.method}, use write command instead.`);
     }
@@ -379,18 +411,33 @@ docs
     process.stdout.write(renderReadUsageText());
   });
 
+docs
+  .command("invoice-edit")
+  .description("Explain the recommended invoice edit workflow")
+  .action(() => {
+    process.stdout.write(renderInvoiceEditWorkflowText());
+  });
+
 program
   .command("write <operationId>")
-  .description("Execute a non-GET operation with explicit safety guards")
+  .description("Execute a non-GET operation (DELETE requires explicit guard)")
   .option("--path <pair...>", "Path params as key=value")
   .option("--query <pair...>", "Query params as key=value")
   .option("--header <pair...>", "Additional headers as key=value")
   .option("--body-file <file>", "JSON file for request body")
   .option("--body-json <json>", "Inline JSON request body")
   .option("--x-version <version>", "Optional sevdesk X-Version header")
-  .option("--execute", "Enable non-read execution", false)
-  .option("--confirm-execute <value>", "Must be 'yes'", "")
-  .option("--allow-write", "Allow writes without env flag", false)
+  .option("--execute", "Required guard only for DELETE operations", false)
+  .option(
+    "--confirm-execute <value>",
+    "Required value 'yes' only for DELETE operations",
+    ""
+  )
+  .option(
+    "--allow-write",
+    "Allow DELETE without SEVDESK_ALLOW_WRITE=true",
+    false
+  )
   .option(
     "--preflight",
     "Validate payload for supported write operations before API call",
@@ -402,10 +449,28 @@ program
     "After write, run read-only verification checks for supported operations",
     false
   )
+  .option(
+    "--verify-contact",
+    "For createContact: run dedicated verification and customerNumber checks",
+    false
+  )
+  .option(
+    "--fix-contact",
+    "With --verify-contact: auto-fix customerNumber mismatch via updateContact",
+    true
+  )
+  .option(
+    "--no-fix-contact",
+    "With --verify-contact: disable automatic customerNumber fix"
+  )
   .option("--output <mode>", "pretty|json|raw", "pretty")
   .option("--save <file>", "Save full response to file")
   .action(async (operationId: string, opts) => {
-    const operation = getOperation(operationId);
+    const operation = getOperationOrFail(operationId);
+
+    if (opts.verifyContact && operationId !== "createContact") {
+      fail("--verify-contact is currently supported only for write createContact.");
+    }
 
     const config = loadConfig({
       xVersion: opts.xVersion,
@@ -461,7 +526,26 @@ program
     });
 
     const extras: Record<string, unknown> = {};
-    if (opts.verify) {
+    if (opts.verifyContact) {
+      try {
+        const contactVerification = await verifyAndMaybeFixCreateContact({
+          client,
+          body,
+          writeResponse: response,
+          autoFixCustomerNumber: Boolean(opts.fixContact),
+        });
+
+        extras.verification = contactVerification.verification;
+        extras.verifyContact = {
+          autoFix: contactVerification.autoFix,
+        };
+      } catch (error) {
+        extras.verification = {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    } else if (opts.verify) {
       try {
         const verification = await runWriteVerification({
           operationId,

@@ -117,7 +117,41 @@ Den Ablauf `Kontakt anlegen -> Angebot erstellen -> PDF ausgeben` robust, reprod
   - Runbook „Kontakt + Angebot + PDF“ in `skills/sevdesk-agent-cli/SKILL.md`.
   - `ops-quirks --json` Mapping-Hinweis (`to_entries[]`) dokumentiert.
 
+### Nachgezogen (2026-02-20, Runde 2)
+- [x] `ops-quirks --json-array`
+  - liefert stabiles Array-Format für Parser (`[{ operationId, ...quirk }]`).
+- [x] `--verify-contact` für `write createContact`
+  - dedizierte Verify-Pipeline für Kontaktanlage.
+  - standardmäßig mit CustomerNumber-Auto-Fix via `updateContact` bei Mismatch.
+  - deaktivierbar via `--no-fix-contact`.
+- [x] Rechnung-Edit-Transparenz
+  - `updateInvoice` wird bei Nutzung explizit als „nicht vorhanden“ erklärt.
+  - neues Runbook-Kommando: `sevdesk-agent docs invoice-edit`.
+
 ### Offen (nicht Teil dieser Umsetzungsrunde)
 - [ ] P1.6 `create-offer` High-Level Kommando
 - [ ] P1.8 Nummern-Generator `next-order-number`
 - [ ] P2.11 Safety-Profile (`--profile ...`)
+
+## OpenAPI Coverage Audit (2026-02-27)
+
+- Quelle: `https://api.sevdesk.de/openapi.yaml`
+- Ergebnis:
+  - OpenAPI Operationen: 154
+  - In CLI-Katalog vorhanden (`src/data/operations.json`): 154/154
+  - Method/Path/Tag-Mismatch: 0
+- Aktueller funktionaler Caveat:
+  - `voucherUploadFile` (`POST /Voucher/Factory/uploadTempFile`) erwartet `form-data` mit Binärdatei.
+  - CLI-Client sendet derzeit nur JSON-Body (`Content-Type: application/json`).
+  - Folge: Endpoint ist im Katalog sichtbar, aber praktisch nicht nutzbar, bis Multipart/Form-Data unterstützt wird.
+- Detaillierter Einzel-Check:
+  - `knowledge/OPENAPI_CLI_COVERAGE_CHECKLIST.md`
+  - `knowledge/OPENAPI_CLI_COVERAGE_CHECKLIST.json`
+
+## Workflow-Änderung: Delete-only Guard (2026-02-27)
+
+- Bisher: alle non-GET Operationen waren mit Write-Guard blockiert.
+- Neu: nur `DELETE` Operationen sind guarded.
+  - Required: `--execute --confirm-execute yes` + `SEVDESK_ALLOW_WRITE=true` (oder `--allow-write`)
+- `POST` / `PUT` / `PATCH` laufen direkt (inkl. bestehender Preflight/Verify-Features).
+- Ziel: weniger Reibung in Agent-Workflows bei gleichzeitiger Absicherung destruktiver Aktionen.

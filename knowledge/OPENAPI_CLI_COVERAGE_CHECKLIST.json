@@ -1,0 +1,1902 @@
+{
+  "summary": {
+    "totalOpenApiOperations": 154,
+    "supported": 153,
+    "caveat": 1,
+    "missingInCli": 0,
+    "byMethod": {
+      "GET": 79,
+      "POST": 28,
+      "PUT": 34,
+      "DELETE": 13
+    },
+    "byTag": {
+      "AccountingContact": 5,
+      "Basics": 1,
+      "CheckAccount": 7,
+      "CheckAccountTransaction": 6,
+      "CommunicationWay": 6,
+      "Contact": 9,
+      "ContactAddress": 5,
+      "ContactField": 12,
+      "CreditNote": 15,
+      "CreditNotePos": 1,
+      "Export": 14,
+      "Invoice": 17,
+      "InvoicePos": 1,
+      "Layout": 5,
+      "Order": 13,
+      "OrderPos": 4,
+      "Part": 5,
+      "PrivateTransactionRule": 3,
+      "Report": 4,
+      "Tag": 6,
+      "Voucher": 14,
+      "VoucherPos": 1
+    }
+  },
+  "operations": [
+    {
+      "operationId": "createAccountingContact",
+      "method": "POST",
+      "path": "/AccountingContact",
+      "tags": [
+        "AccountingContact"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "deleteAccountingContact",
+      "method": "DELETE",
+      "path": "/AccountingContact/{accountingContactId}",
+      "tags": [
+        "AccountingContact"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "getAccountingContact",
+      "method": "GET",
+      "path": "/AccountingContact",
+      "tags": [
+        "AccountingContact"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getAccountingContactById",
+      "method": "GET",
+      "path": "/AccountingContact/{accountingContactId}",
+      "tags": [
+        "AccountingContact"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "updateAccountingContact",
+      "method": "PUT",
+      "path": "/AccountingContact/{accountingContactId}",
+      "tags": [
+        "AccountingContact"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "bookkeepingSystemVersion",
+      "method": "GET",
+      "path": "/Tools/bookkeepingSystemVersion",
+      "tags": [
+        "Basics"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "createClearingAccount",
+      "method": "POST",
+      "path": "/CheckAccount/Factory/clearingAccount",
+      "tags": [
+        "CheckAccount"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "createFileImportAccount",
+      "method": "POST",
+      "path": "/CheckAccount/Factory/fileImportAccount",
+      "tags": [
+        "CheckAccount"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "deleteCheckAccount",
+      "method": "DELETE",
+      "path": "/CheckAccount/{checkAccountId}",
+      "tags": [
+        "CheckAccount"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "getBalanceAtDate",
+      "method": "GET",
+      "path": "/CheckAccount/{checkAccountId}/getBalanceAtDate",
+      "tags": [
+        "CheckAccount"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getCheckAccountById",
+      "method": "GET",
+      "path": "/CheckAccount/{checkAccountId}",
+      "tags": [
+        "CheckAccount"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getCheckAccounts",
+      "method": "GET",
+      "path": "/CheckAccount",
+      "tags": [
+        "CheckAccount"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "updateCheckAccount",
+      "method": "PUT",
+      "path": "/CheckAccount/{checkAccountId}",
+      "tags": [
+        "CheckAccount"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "checkAccountTransactionEnshrine",
+      "method": "PUT",
+      "path": "/CheckAccountTransaction/{checkAccountTransactionId}/enshrine",
+      "tags": [
+        "CheckAccountTransaction"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "createTransaction",
+      "method": "POST",
+      "path": "/CheckAccountTransaction",
+      "tags": [
+        "CheckAccountTransaction"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "deleteCheckAccountTransaction",
+      "method": "DELETE",
+      "path": "/CheckAccountTransaction/{checkAccountTransactionId}",
+      "tags": [
+        "CheckAccountTransaction"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "getCheckAccountTransactionById",
+      "method": "GET",
+      "path": "/CheckAccountTransaction/{checkAccountTransactionId}",
+      "tags": [
+        "CheckAccountTransaction"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getTransactions",
+      "method": "GET",
+      "path": "/CheckAccountTransaction",
+      "tags": [
+        "CheckAccountTransaction"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "updateCheckAccountTransaction",
+      "method": "PUT",
+      "path": "/CheckAccountTransaction/{checkAccountTransactionId}",
+      "tags": [
+        "CheckAccountTransaction"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "createCommunicationWay",
+      "method": "POST",
+      "path": "/CommunicationWay",
+      "tags": [
+        "CommunicationWay"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "deleteCommunicationWay",
+      "method": "DELETE",
+      "path": "/CommunicationWay/{communicationWayId}",
+      "tags": [
+        "CommunicationWay"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "getCommunicationWayById",
+      "method": "GET",
+      "path": "/CommunicationWay/{communicationWayId}",
+      "tags": [
+        "CommunicationWay"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getCommunicationWayKeys",
+      "method": "GET",
+      "path": "/CommunicationWayKey",
+      "tags": [
+        "CommunicationWay"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getCommunicationWays",
+      "method": "GET",
+      "path": "/CommunicationWay",
+      "tags": [
+        "CommunicationWay"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "UpdateCommunicationWay",
+      "method": "PUT",
+      "path": "/CommunicationWay/{communicationWayId}",
+      "tags": [
+        "CommunicationWay"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "contactCustomerNumberAvailabilityCheck",
+      "method": "GET",
+      "path": "/Contact/Mapper/checkCustomerNumberAvailability",
+      "tags": [
+        "Contact"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": [
+        "Runtime-required query params: customerNumber"
+      ]
+    },
+    {
+      "operationId": "createContact",
+      "method": "POST",
+      "path": "/Contact",
+      "tags": [
+        "Contact"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "deleteContact",
+      "method": "DELETE",
+      "path": "/Contact/{contactId}",
+      "tags": [
+        "Contact"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "findContactsByCustomFieldValue",
+      "method": "GET",
+      "path": "/Contact/Factory/findContactsByCustomFieldValue",
+      "tags": [
+        "Contact"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getContactById",
+      "method": "GET",
+      "path": "/Contact/{contactId}",
+      "tags": [
+        "Contact"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getContacts",
+      "method": "GET",
+      "path": "/Contact",
+      "tags": [
+        "Contact"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getContactTabsItemCountById",
+      "method": "GET",
+      "path": "/Contact/{contactId}/getTabsItemCount",
+      "tags": [
+        "Contact"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": [
+        "Runtime normalization: unwrapObjects"
+      ]
+    },
+    {
+      "operationId": "getNextCustomerNumber",
+      "method": "GET",
+      "path": "/Contact/Factory/getNextCustomerNumber",
+      "tags": [
+        "Contact"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "updateContact",
+      "method": "PUT",
+      "path": "/Contact/{contactId}",
+      "tags": [
+        "Contact"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "contactAddressId",
+      "method": "GET",
+      "path": "/ContactAddress/{contactAddressId}",
+      "tags": [
+        "ContactAddress"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "createContactAddress",
+      "method": "POST",
+      "path": "/ContactAddress",
+      "tags": [
+        "ContactAddress"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "deleteContactAddress",
+      "method": "DELETE",
+      "path": "/ContactAddress/{contactAddressId}",
+      "tags": [
+        "ContactAddress"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "getContactAddresses",
+      "method": "GET",
+      "path": "/ContactAddress",
+      "tags": [
+        "ContactAddress"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "updateContactAddress",
+      "method": "PUT",
+      "path": "/ContactAddress/{contactAddressId}",
+      "tags": [
+        "ContactAddress"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "createContactField",
+      "method": "POST",
+      "path": "/ContactCustomField",
+      "tags": [
+        "ContactField"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "createContactFieldSetting",
+      "method": "POST",
+      "path": "/ContactCustomFieldSetting",
+      "tags": [
+        "ContactField"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "deleteContactCustomFieldId",
+      "method": "DELETE",
+      "path": "/ContactCustomField/{contactCustomFieldId}",
+      "tags": [
+        "ContactField"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "deleteContactFieldSetting",
+      "method": "DELETE",
+      "path": "/ContactCustomFieldSetting/{contactCustomFieldSettingId}",
+      "tags": [
+        "ContactField"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "getContactFields",
+      "method": "GET",
+      "path": "/ContactCustomField",
+      "tags": [
+        "ContactField"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getContactFieldsById",
+      "method": "GET",
+      "path": "/ContactCustomField/{contactCustomFieldId}",
+      "tags": [
+        "ContactField"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getContactFieldSettingById",
+      "method": "GET",
+      "path": "/ContactCustomFieldSetting/{contactCustomFieldSettingId}",
+      "tags": [
+        "ContactField"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getContactFieldSettings",
+      "method": "GET",
+      "path": "/ContactCustomFieldSetting",
+      "tags": [
+        "ContactField"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getPlaceholder",
+      "method": "GET",
+      "path": "/Textparser/fetchDictionaryEntriesByType",
+      "tags": [
+        "ContactField"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getReferenceCount",
+      "method": "GET",
+      "path": "/ContactCustomFieldSetting/{contactCustomFieldSettingId}/getReferenceCount",
+      "tags": [
+        "ContactField"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "updateContactfield",
+      "method": "PUT",
+      "path": "/ContactCustomField/{contactCustomFieldId}",
+      "tags": [
+        "ContactField"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "updateContactFieldSetting",
+      "method": "PUT",
+      "path": "/ContactCustomFieldSetting/{contactCustomFieldSettingId}",
+      "tags": [
+        "ContactField"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "bookCreditNote",
+      "method": "PUT",
+      "path": "/CreditNote/{creditNoteId}/bookAmount",
+      "tags": [
+        "CreditNote"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "createcreditNote",
+      "method": "POST",
+      "path": "/CreditNote/Factory/saveCreditNote",
+      "tags": [
+        "CreditNote"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "createCreditNoteFromInvoice",
+      "method": "POST",
+      "path": "/CreditNote/Factory/createFromInvoice",
+      "tags": [
+        "CreditNote"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "createCreditNoteFromVoucher",
+      "method": "POST",
+      "path": "/CreditNote/Factory/createFromVoucher",
+      "tags": [
+        "CreditNote"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "creditNoteEnshrine",
+      "method": "PUT",
+      "path": "/CreditNote/{creditNoteId}/enshrine",
+      "tags": [
+        "CreditNote"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "creditNoteGetPdf",
+      "method": "GET",
+      "path": "/CreditNote/{creditNoteId}/getPdf",
+      "tags": [
+        "CreditNote"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "creditNoteResetToDraft",
+      "method": "PUT",
+      "path": "/CreditNote/{creditNoteId}/resetToDraft",
+      "tags": [
+        "CreditNote"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "creditNoteResetToOpen",
+      "method": "PUT",
+      "path": "/CreditNote/{creditNoteId}/resetToOpen",
+      "tags": [
+        "CreditNote"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "creditNoteSendBy",
+      "method": "PUT",
+      "path": "/CreditNote/{creditNoteId}/sendBy",
+      "tags": [
+        "CreditNote"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "deletecreditNote",
+      "method": "DELETE",
+      "path": "/CreditNote/{creditNoteId}",
+      "tags": [
+        "CreditNote"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "getcreditNoteById",
+      "method": "GET",
+      "path": "/CreditNote/{creditNoteId}",
+      "tags": [
+        "CreditNote"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getCreditNotes",
+      "method": "GET",
+      "path": "/CreditNote",
+      "tags": [
+        "CreditNote"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "sendCreditNoteByPrinting",
+      "method": "GET",
+      "path": "/CreditNote/{creditNoteId}/sendByWithRender",
+      "tags": [
+        "CreditNote"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "sendCreditNoteViaEMail",
+      "method": "POST",
+      "path": "/CreditNote/{creditNoteId}/sendViaEmail",
+      "tags": [
+        "CreditNote"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "updatecreditNote",
+      "method": "PUT",
+      "path": "/CreditNote/{creditNoteId}",
+      "tags": [
+        "CreditNote"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "getcreditNotePositions",
+      "method": "GET",
+      "path": "/CreditNotePos",
+      "tags": [
+        "CreditNotePos"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "exportContact",
+      "method": "GET",
+      "path": "/Export/contactListCsv",
+      "tags": [
+        "Export"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "exportCreditNote",
+      "method": "GET",
+      "path": "/Export/creditNoteCsv",
+      "tags": [
+        "Export"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "exportDatevCSV",
+      "method": "GET",
+      "path": "/Export/createDatevCsvZipExportJob",
+      "tags": [
+        "Export"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "exportDatevDepricated",
+      "method": "GET",
+      "path": "/Export/datevCSV",
+      "tags": [
+        "Export"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "exportDatevXML",
+      "method": "GET",
+      "path": "/Export/createDatevXmlZipExportJob",
+      "tags": [
+        "Export"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "exportInvoice",
+      "method": "GET",
+      "path": "/Export/invoiceCsv",
+      "tags": [
+        "Export"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "exportInvoiceZip",
+      "method": "GET",
+      "path": "/Export/invoiceZip",
+      "tags": [
+        "Export"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "exportTransactions",
+      "method": "GET",
+      "path": "/Export/transactionsCsv",
+      "tags": [
+        "Export"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "exportVoucher",
+      "method": "GET",
+      "path": "/Export/voucherListCsv",
+      "tags": [
+        "Export"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "exportVoucherZip",
+      "method": "GET",
+      "path": "/Export/voucherZip",
+      "tags": [
+        "Export"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "generateDownloadHash",
+      "method": "GET",
+      "path": "/Progress/generateDownloadHash",
+      "tags": [
+        "Export"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getProgress",
+      "method": "GET",
+      "path": "/Progress/getProgress",
+      "tags": [
+        "Export"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "jobDownloadInfo",
+      "method": "GET",
+      "path": "/ExportJob/jobDownloadInfo",
+      "tags": [
+        "Export"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "updateExportConfig",
+      "method": "PUT",
+      "path": "/SevClient/{SevClientId}/updateExportConfig",
+      "tags": [
+        "Export"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "bookInvoice",
+      "method": "PUT",
+      "path": "/Invoice/{invoiceId}/bookAmount",
+      "tags": [
+        "Invoice"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "cancelInvoice",
+      "method": "POST",
+      "path": "/Invoice/{invoiceId}/cancelInvoice",
+      "tags": [
+        "Invoice"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "createInvoiceByFactory",
+      "method": "POST",
+      "path": "/Invoice/Factory/saveInvoice",
+      "tags": [
+        "Invoice"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "createInvoiceFromOrder",
+      "method": "POST",
+      "path": "/Invoice/Factory/createInvoiceFromOrder",
+      "tags": [
+        "Invoice"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "createInvoiceReminder",
+      "method": "POST",
+      "path": "/Invoice/Factory/createInvoiceReminder",
+      "tags": [
+        "Invoice"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "getInvoiceById",
+      "method": "GET",
+      "path": "/Invoice/{invoiceId}",
+      "tags": [
+        "Invoice"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getInvoicePositionsById",
+      "method": "GET",
+      "path": "/Invoice/{invoiceId}/getPositions",
+      "tags": [
+        "Invoice"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getInvoices",
+      "method": "GET",
+      "path": "/Invoice",
+      "tags": [
+        "Invoice"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getIsInvoicePartiallyPaid",
+      "method": "GET",
+      "path": "/Invoice/{invoiceId}/getIsPartiallyPaid",
+      "tags": [
+        "Invoice"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "invoiceEnshrine",
+      "method": "PUT",
+      "path": "/Invoice/{invoiceId}/enshrine",
+      "tags": [
+        "Invoice"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "invoiceGetPdf",
+      "method": "GET",
+      "path": "/Invoice/{invoiceId}/getPdf",
+      "tags": [
+        "Invoice"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": [
+        "Runtime normalization: unwrapObjects"
+      ]
+    },
+    {
+      "operationId": "invoiceGetXml",
+      "method": "GET",
+      "path": "/Invoice/{invoiceId}/getXml",
+      "tags": [
+        "Invoice"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "invoiceRender",
+      "method": "POST",
+      "path": "/Invoice/{invoiceId}/render",
+      "tags": [
+        "Invoice"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "invoiceResetToDraft",
+      "method": "PUT",
+      "path": "/Invoice/{invoiceId}/resetToDraft",
+      "tags": [
+        "Invoice"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "invoiceResetToOpen",
+      "method": "PUT",
+      "path": "/Invoice/{invoiceId}/resetToOpen",
+      "tags": [
+        "Invoice"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "invoiceSendBy",
+      "method": "PUT",
+      "path": "/Invoice/{invoiceId}/sendBy",
+      "tags": [
+        "Invoice"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "sendInvoiceViaEMail",
+      "method": "POST",
+      "path": "/Invoice/{invoiceId}/sendViaEmail",
+      "tags": [
+        "Invoice"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "getInvoicePos",
+      "method": "GET",
+      "path": "/InvoicePos",
+      "tags": [
+        "InvoicePos"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getLetterpapersWithThumb",
+      "method": "GET",
+      "path": "/DocServer/getLetterpapersWithThumb",
+      "tags": [
+        "Layout"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": [
+        "Runtime normalization: unwrapObjects"
+      ]
+    },
+    {
+      "operationId": "getTemplates",
+      "method": "GET",
+      "path": "/DocServer/getTemplatesWithThumb",
+      "tags": [
+        "Layout"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": [
+        "Runtime normalization: unwrapObjects"
+      ]
+    },
+    {
+      "operationId": "updateCreditNoteTemplate",
+      "method": "PUT",
+      "path": "/CreditNote/{creditNoteId}/changeParameter",
+      "tags": [
+        "Layout"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "updateInvoiceTemplate",
+      "method": "PUT",
+      "path": "/Invoice/{invoiceId}/changeParameter",
+      "tags": [
+        "Layout"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "updateOrderTemplate",
+      "method": "PUT",
+      "path": "/Order/{orderId}/changeParameter",
+      "tags": [
+        "Layout"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "createContractNoteFromOrder",
+      "method": "POST",
+      "path": "/Order/Factory/createContractNoteFromOrder",
+      "tags": [
+        "Order"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "createOrder",
+      "method": "POST",
+      "path": "/Order/Factory/saveOrder",
+      "tags": [
+        "Order"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "createPackingListFromOrder",
+      "method": "POST",
+      "path": "/Order/Factory/createPackingListFromOrder",
+      "tags": [
+        "Order"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "deleteOrder",
+      "method": "DELETE",
+      "path": "/Order/{orderId}",
+      "tags": [
+        "Order"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "getDiscounts",
+      "method": "GET",
+      "path": "/Order/{orderId}/getDiscounts",
+      "tags": [
+        "Order"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getOrderById",
+      "method": "GET",
+      "path": "/Order/{orderId}",
+      "tags": [
+        "Order"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getOrderPositionsById",
+      "method": "GET",
+      "path": "/Order/{orderId}/getPositions",
+      "tags": [
+        "Order"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getOrders",
+      "method": "GET",
+      "path": "/Order",
+      "tags": [
+        "Order"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getRelatedObjects",
+      "method": "GET",
+      "path": "/Order/{orderId}/getRelatedObjects",
+      "tags": [
+        "Order"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "orderGetPdf",
+      "method": "GET",
+      "path": "/Order/{orderId}/getPdf",
+      "tags": [
+        "Order"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": [
+        "Runtime normalization: unwrapObjects"
+      ]
+    },
+    {
+      "operationId": "orderSendBy",
+      "method": "PUT",
+      "path": "/Order/{orderId}/sendBy",
+      "tags": [
+        "Order"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "sendorderViaEMail",
+      "method": "POST",
+      "path": "/Order/{orderId}/sendViaEmail",
+      "tags": [
+        "Order"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "updateOrder",
+      "method": "PUT",
+      "path": "/Order/{orderId}",
+      "tags": [
+        "Order"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "deleteOrderPos",
+      "method": "DELETE",
+      "path": "/OrderPos/{orderPosId}",
+      "tags": [
+        "OrderPos"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "getOrderPositionById",
+      "method": "GET",
+      "path": "/OrderPos/{orderPosId}",
+      "tags": [
+        "OrderPos"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getOrderPositions",
+      "method": "GET",
+      "path": "/OrderPos",
+      "tags": [
+        "OrderPos"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "updateOrderPosition",
+      "method": "PUT",
+      "path": "/OrderPos/{orderPosId}",
+      "tags": [
+        "OrderPos"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "createPart",
+      "method": "POST",
+      "path": "/Part",
+      "tags": [
+        "Part"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "getPartById",
+      "method": "GET",
+      "path": "/Part/{partId}",
+      "tags": [
+        "Part"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getParts",
+      "method": "GET",
+      "path": "/Part",
+      "tags": [
+        "Part"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "partGetStock",
+      "method": "GET",
+      "path": "/Part/{partId}/getStock",
+      "tags": [
+        "Part"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": [
+        "Runtime normalization: coerceObjectsNumber"
+      ]
+    },
+    {
+      "operationId": "updatePart",
+      "method": "PUT",
+      "path": "/Part/{partId}",
+      "tags": [
+        "Part"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "createPrivateTransactionRule",
+      "method": "POST",
+      "path": "/PrivateTransactionRule",
+      "tags": [
+        "PrivateTransactionRule"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "deletePrivateTransactionRule",
+      "method": "DELETE",
+      "path": "/PrivateTransactionRule/{id}",
+      "tags": [
+        "PrivateTransactionRule"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "listPrivateTransactionRules",
+      "method": "GET",
+      "path": "/PrivateTransactionRule",
+      "tags": [
+        "PrivateTransactionRule"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "reportContact",
+      "method": "GET",
+      "path": "/Report/contactlist",
+      "tags": [
+        "Report"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "reportInvoice",
+      "method": "GET",
+      "path": "/Report/invoicelist",
+      "tags": [
+        "Report"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "reportOrder",
+      "method": "GET",
+      "path": "/Report/orderlist",
+      "tags": [
+        "Report"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "reportVoucher",
+      "method": "GET",
+      "path": "/Report/voucherlist",
+      "tags": [
+        "Report"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "createTag",
+      "method": "POST",
+      "path": "/Tag/Factory/create",
+      "tags": [
+        "Tag"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "deleteTag",
+      "method": "DELETE",
+      "path": "/Tag/{tagId}",
+      "tags": [
+        "Tag"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "getTagById",
+      "method": "GET",
+      "path": "/Tag/{tagId}",
+      "tags": [
+        "Tag"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getTagRelations",
+      "method": "GET",
+      "path": "/TagRelation",
+      "tags": [
+        "Tag"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getTags",
+      "method": "GET",
+      "path": "/Tag",
+      "tags": [
+        "Tag"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "updateTag",
+      "method": "PUT",
+      "path": "/Tag/{tagId}",
+      "tags": [
+        "Tag"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "bookVoucher",
+      "method": "PUT",
+      "path": "/Voucher/{voucherId}/bookAmount",
+      "tags": [
+        "Voucher"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "forAccountNumber",
+      "method": "GET",
+      "path": "/ReceiptGuidance/forAccountNumber",
+      "tags": [
+        "Voucher"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": [
+        "Runtime normalization: coerceObjectsArray"
+      ]
+    },
+    {
+      "operationId": "forAllAccounts",
+      "method": "GET",
+      "path": "/ReceiptGuidance/forAllAccounts",
+      "tags": [
+        "Voucher"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "forExpense",
+      "method": "GET",
+      "path": "/ReceiptGuidance/forExpense",
+      "tags": [
+        "Voucher"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "forRevenue",
+      "method": "GET",
+      "path": "/ReceiptGuidance/forRevenue",
+      "tags": [
+        "Voucher"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "forTaxRule",
+      "method": "GET",
+      "path": "/ReceiptGuidance/forTaxRule",
+      "tags": [
+        "Voucher"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getVoucherById",
+      "method": "GET",
+      "path": "/Voucher/{voucherId}",
+      "tags": [
+        "Voucher"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "getVouchers",
+      "method": "GET",
+      "path": "/Voucher",
+      "tags": [
+        "Voucher"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    },
+    {
+      "operationId": "updateVoucher",
+      "method": "PUT",
+      "path": "/Voucher/{voucherId}",
+      "tags": [
+        "Voucher"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "voucherEnshrine",
+      "method": "PUT",
+      "path": "/Voucher/{voucherId}/enshrine",
+      "tags": [
+        "Voucher"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "voucherFactorySaveVoucher",
+      "method": "POST",
+      "path": "/Voucher/Factory/saveVoucher",
+      "tags": [
+        "Voucher"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "voucherResetToDraft",
+      "method": "PUT",
+      "path": "/Voucher/{voucherId}/resetToDraft",
+      "tags": [
+        "Voucher"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "voucherResetToOpen",
+      "method": "PUT",
+      "path": "/Voucher/{voucherId}/resetToOpen",
+      "tags": [
+        "Voucher"
+      ],
+      "mode": "write",
+      "status": "SUPPORTED",
+      "notes": [
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "voucherUploadFile",
+      "method": "POST",
+      "path": "/Voucher/Factory/uploadTempFile",
+      "tags": [
+        "Voucher"
+      ],
+      "mode": "write",
+      "status": "CAVEAT",
+      "notes": [
+        "Request body content-type is non-JSON: form-data",
+        "CLI client always sends JSON body (Content-Type: application/json).",
+        "Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write."
+      ]
+    },
+    {
+      "operationId": "getVoucherPositions",
+      "method": "GET",
+      "path": "/VoucherPos",
+      "tags": [
+        "VoucherPos"
+      ],
+      "mode": "read",
+      "status": "SUPPORTED",
+      "notes": []
+    }
+  ]
+}

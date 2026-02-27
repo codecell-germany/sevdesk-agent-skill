@@ -1,269 +1,182 @@
-# sevdesk-agent-skill (sevdesk-agent-cli)
+# sevdesk-agent-skill
 
-Skill and CLI for safely operating the sevdesk API with coding agents.
+Agent-first CLI + skill package for sevdesk with a read-first workflow, API-complete operation catalog, verification helpers, safe PDF handling, and context snapshots.
 
-## Features
-- Operation catalog (`ops list`, `op-show`) derived from sevdesk OpenAPI data (checked into `src/data/operations.json`).
-- Read-first workflow: `read <operationId>` runs only `GET`.
-- `find-contact <term>` with local scoring (`name`, `name2`, `surename`, `familyname`, `customerNumber`) for reproducible lookup.
-- Guarded writes: `write <operationId>` is blocked unless you explicitly confirm execution.
-- Preflight validation for `createContact` and `createOrder` with clear local error messages.
-- Optional post-write verification via `write ... --verify` (read-only checks).
-- Runtime quirks: `ops-quirks` + optional response normalization for known deviations.
-- Safe PDF mode: `orderGetPdf` / `invoiceGetPdf` automatically use `preventSendBy=1` unless disabled.
-- Direct PDF decode: `read ... --decode-pdf <path>`.
-- Agent handoff context: `context snapshot` emits a deterministic JSON snapshot to `stdout` (optional `--output` file).
+## Core Capabilities
 
-## Install Skill (Recommended: skills.sh CLI)
-One command to install this skill for all your coding agents:
+- API operation coverage from official OpenAPI (`154` operations in catalog).
+- Read-first execution model (`read <operationId>`).
+- Fast write workflows for `POST` / `PUT` / `PATCH` (no generic write blocker).
+- Explicit delete guard for `DELETE` operations.
+- Built-in preflight validation for high-impact writes (`createContact`, `createOrder`).
+- Post-write verification (`--verify`, `--verify-contact`) including contact customer-number checks.
+- Contact lookup helper with local scoring (`find-contact`).
+- Safe PDF mode for `orderGetPdf` / `invoiceGetPdf` (`preventSendBy=1` default).
+- Direct PDF file decode (`--decode-pdf`).
+- Runtime quirk handling (`ops-quirks`, normalization in `read`).
+- Handoff snapshots for multi-agent continuation (`context snapshot`).
+
+## Why This Improves Agent Workflows
+
+Typical agent pain points this tool removes:
+
+- No more endpoint guessing: operation IDs are discoverable and inspectable.
+- Less brittle contact search: local scoring beats unreliable server-side partial search patterns.
+- Fewer malformed writes: preflight catches payload mistakes before API calls.
+- Faster troubleshooting: verify modes immediately show if the write result matches intent.
+- Safer document exports: PDF requests avoid accidental send/status side effects by default.
+
+## Simplified Process Examples
+
+### 1) New Contact Onboarding (Create + Verify)
+
+```bash
+sevdesk-agent find-contact "Muster GmbH" --output json
+sevdesk-agent write createContact --body-file payloads/contact.create.json --verify-contact
+```
+
+What got simpler:
+- Fast duplicate check.
+- Immediate validation of persisted contact data.
+- Optional auto-fix for customer number mismatch.
+
+### 2) Offer Creation Flow (Kontakt -> Angebot -> PDF)
+
+```bash
+sevdesk-agent write createOrder --body-file payloads/order.create.json --verify
+sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer-12345.pdf --output json
+```
+
+What got simpler:
+- Preflight catches invalid order payload shape.
+- Verify confirms recipient/positions/status after write.
+- PDF is ready as a file without manual base64 piping.
+
+### 3) Invoice State Repair (Action-based Invoice API)
+
+```bash
+sevdesk-agent read getInvoiceById --path invoiceId=98765 --output json
+sevdesk-agent write invoiceResetToDraft --path invoiceId=98765
+sevdesk-agent write invoiceRender --path invoiceId=98765
+```
+
+What got simpler:
+- Clear action-based invoice workflow instead of searching for a non-existing generic `updateInvoice` route.
+
+### 4) Controlled Deletion (Guarded)
+
+```bash
+sevdesk-agent write deleteOrder --path orderId=12345 --execute --confirm-execute yes --allow-write
+```
+
+What got simpler:
+- Only destructive operations require guard confirmation.
+- Regular write flows stay fast.
+
+### 5) Agent Handoff Snapshot
+
+```bash
+sevdesk-agent context snapshot --include-default --max-objects 20 --output .context/sevdesk-context-snapshot.json
+```
+
+What got simpler:
+- Next agent receives consistent context without ad-hoc manual exports.
+
+## Quick Start
+
+Requirements:
+- Node.js >= 20
+- `SEVDESK_API_TOKEN`
+
+```bash
+npm install
+npm run build
+export SEVDESK_API_TOKEN="..."
+node dist/index.js read bookkeepingSystemVersion --output json
+```
+
+If local wrapper is executable:
+
+```bash
+sevdesk-agent read bookkeepingSystemVersion --output json
+```
+
+## CLI Overview
+
+- `sevdesk-agent ops list --read-only`
+- `sevdesk-agent op-show <operationId>`
+- `sevdesk-agent ops-quirks --json-array`
+- `sevdesk-agent read <operationId> ...`
+- `sevdesk-agent write <operationId> ...`
+- `sevdesk-agent find-contact <term> ...`
+- `sevdesk-agent docs read-ops --output knowledge/READ_OPERATIONS.md`
+- `sevdesk-agent docs invoice-edit`
+- `sevdesk-agent context snapshot ...`
+
+## Guard Model
+
+- `GET`, `POST`, `PUT`, `PATCH`: executable directly.
+- `DELETE`: requires explicit guard confirmation:
+  - `--execute`
+  - `--confirm-execute yes`
+  - `SEVDESK_ALLOW_WRITE=true` or `--allow-write`
+
+## Known Caveat
+
+- `voucherUploadFile` (`POST /Voucher/Factory/uploadTempFile`) expects `form-data` binary upload.
+- Current CLI client sends JSON request bodies, so this endpoint is cataloged but not fully usable yet.
+
+## Install via skills.sh
+
+Install the skill globally for all agents:
+
 ```bash
 npx skills add codecell-germany/sevdesk-agent-skill -g --skill sevdesk-agent-cli --agent '*' -y
 ```
 
-List available skills in this repo (no install):
+List skills in this repository:
+
 ```bash
 npx skills add codecell-germany/sevdesk-agent-skill -l
 ```
 
-Notes:
-- This is the primary ecosystem for skills.sh. Leaderboard placement is based on anonymous install telemetry from the `skills` CLI (opt out via `DISABLE_TELEMETRY=1`). See: https://skills.sh/
-- If you are unsure about agent ids, omit `--agent ...` (or `-a ...`) and run interactively.
+## Package + npx usage
 
-## Quick Start (works for all agents)
-Requirements:
-- Node.js >= 20
+Install skill payload into Codex home:
 
-Install + build:
 ```bash
-npm install
-npm run build
+npx -y @codecell-germany/sevdesk-agent-skill install
 ```
 
-Set auth token:
+Run CLI directly from npm package:
+
 ```bash
-export SEVDESK_API_TOKEN="..."
-```
-
-Run a first read call:
-```bash
-./dist/index.js read bookkeepingSystemVersion --output json
-```
-
-## Authentication
-This CLI reads the API token from the environment:
-- `SEVDESK_API_TOKEN` (required)
-
-Optional:
-- `SEVDESK_BASE_URL` (default: `https://my.sevdesk.de/api/v1`)
-- `SEVDESK_USER_AGENT`
-- `SEVDESK_ALLOW_WRITE=true` (only relevant if you want to run write calls)
-
-Example:
-```bash
-export SEVDESK_API_TOKEN="..."
-sevdesk-agent read bookkeepingSystemVersion --output json
-```
-
-## Usage
-Run the CLI from this repo:
-```bash
-./dist/index.js --help
-./dist/index.js ops list --read-only
-```
-
-Run the CLI via npx (no local checkout/build needed):
-```bash
-# run from any directory (recommended: not from inside this repo)
 npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent --help
-npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent ops list --read-only
 ```
 
-Optional: install as a global CLI for your shell:
-```bash
-npm link
-sevdesk-agent --help
-```
+## Project Structure
 
-If the wrapper is not executable (`permission denied`), run:
-```bash
-node dist/index.js <command> ...
-```
+- CLI source: `src/`
+- Operation catalog: `src/data/operations.json`
+- Runtime quirks: `src/data/runtime-quirks.json`
+- Skill prompt: `skills/sevdesk-agent-cli/SKILL.md`
+- Knowledge docs: `knowledge/`
 
-### CLI Commands (overview)
-- `ops list`: list operations from the OpenAPI-derived catalog (filters: `--read-only`, `--method`, `--tag`, `--json`)
-- `ops-quirks`: list known runtime quirks and normalizations
-- `op-show <operationId>`: show method/path/params (+ runtime quirk)
-- `read <operationId>`: execute GET operation (supports `--path`, `--query`, `--header`, `--normalize`, `--safe-pdf`, `--decode-pdf`, `--output`, `--save`)
-- `find-contact <term>`: local fuzzy/scored contact lookup based on full contact list
-- `write <operationId>`: execute non-GET with guards (`--execute`, `--confirm-execute yes`, `--allow-write`/`SEVDESK_ALLOW_WRITE=true`, `--verify`)
-- `docs usage`: short read-only usage guide
-- `docs read-ops`: generate `knowledge/READ_OPERATIONS.md` from the catalog
-- `context snapshot`: capture a deterministic read-only context snapshot
+## Testing
 
-### Skill Installer Commands (overview)
-- `sevdesk-agent-skill install`: copy `skills/sevdesk-agent-cli` into `~/.codex/skills` (supports `--force`, `--codex-home`, `--dry-run`)
-- `sevdesk-agent-skill uninstall`: remove the skill from the Codex skills folder
-- `sevdesk-agent-skill doctor`: diagnostics (node version + payload + install state)
-
-Full operation catalog (operationId -> HTTP method/path):
-- `OPERATIONS.md`
-
-List read-only operations:
-```bash
-sevdesk-agent ops list --read-only
-```
-
-Read an endpoint (GET only):
-```bash
-sevdesk-agent read getInvoices --output json
-```
-
-Read + decode PDF in one command (safe mode on by default):
-```bash
-sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer.pdf --output json
-```
-
-Find contact locally with scoring:
-```bash
-sevdesk-agent find-contact "nikolas gottschol" --output json
-```
-
-Generate a full read-only operation reference (Markdown):
-```bash
-sevdesk-agent docs read-ops --output knowledge/READ_OPERATIONS.md
-```
-
-Context snapshot (stdout by default):
-```bash
-sevdesk-agent context snapshot --include-default --max-objects 20 > snapshot.json
-```
-
-Optional: write the snapshot to a file:
-```bash
-sevdesk-agent context snapshot --include-default --output .context/sevdesk-context-snapshot.json
-```
-
-## Safety model for writes
-Writes are blocked by default. To execute non-GET operations you must provide all guards:
-- `--execute`
-- `--confirm-execute yes`
-- and either `SEVDESK_ALLOW_WRITE=true` or `--allow-write`
-
-## Tests
-Unit tests:
 ```bash
 npm test
+npm run test:live
 ```
 
-Live read-only tests (will only run if you opt in):
-```bash
-SEVDESK_LIVE_TESTS=1 SEVDESK_API_TOKEN="..." npm run test:live
-```
-
-## Agent Installation (Codex, Claude Code, Gemini CLI)
-This repo contains a reusable agent "skill" prompt and workflow under:
-- `skills/sevdesk-agent-cli/SKILL.md`
-
-The key idea for all coding agents is the same:
-1. Ensure the `sevdesk-agent` CLI is runnable (recommended: via npx).
-2. Provide `SEVDESK_API_TOKEN` in the agent environment.
-3. Require that all sevdesk interactions go through `sevdesk-agent` (read-first) and that non-GET calls need explicit human confirmation.
-
-### Install Skill via skills CLI (recommended)
-Install this specific skill for all agents globally:
-```bash
-npx skills add codecell-germany/sevdesk-agent-skill -g --skill sevdesk-agent-cli --agent '*' -y
-```
-
-Install all skills from this repo for all agents globally (if/when the repo contains multiple skills):
-```bash
-npx skills add codecell-germany/sevdesk-agent-skill -g --all
-```
-
-Telemetry opt-out:
-```bash
-DISABLE_TELEMETRY=1 npx skills add codecell-germany/sevdesk-agent-skill -g --skill sevdesk-agent-cli --agent '*' -y
-```
-
-### Install Skill via npm package installer (Codex-only fallback)
-This installs (copies) the skill into your Codex skills folder (`~/.codex/skills/sevdesk-agent-cli`):
-```bash
-npx -y @codecell-germany/sevdesk-agent-skill install
-```
-
-If you run this from inside this repo folder and see `sevdesk-agent-skill: command not found`,
-run the command from a different directory (e.g. `cd ~`) and try again.
-
-Update/overwrite:
-```bash
-npx -y @codecell-germany/sevdesk-agent-skill install --force
-```
-
-### Provide the CLI to agents (recommended: npx)
-If the agent can run shell commands, the simplest way is to run `sevdesk-agent` via `npx` without any local checkout:
-```bash
-npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent ops list --read-only
-```
-
-### Codex CLI
-1. Build the repo:
-```bash
-npm install
-npm run build
-```
-2. (Optional) Install global binary:
-```bash
-npm link
-```
-3. Ensure token is available:
-```bash
-export SEVDESK_API_TOKEN="..."
-```
-4. Use the skill instructions as the agent's operating rules:
-- Point the agent at `skills/sevdesk-agent-cli/SKILL.md`.
-
-### Codex App
-1. Same build/token steps as above.
-2. Install the skill via npx (copies into `~/.codex/skills/sevdesk-agent-cli`):
-```bash
-npx -y @codecell-germany/sevdesk-agent-skill install
-```
-3. In Codex App, select/use the `sevdesk-agent-cli` skill for tasks that touch sevdesk.
-
-Update/overwrite:
-```bash
-npx -y @codecell-germany/sevdesk-agent-skill install --force
-```
-
-### Claude Code
-Claude Code can use external CLIs. Recommended setup:
-1. Provide the CLI:
-   Option A (recommended, no checkout): use npx in commands.
-   Option B: build the repo and expose the CLI (recommended if you need offline use):
-```bash
-npm install
-npm run build
-npm link
-```
-2. Set token in the shell environment that Claude Code inherits:
-```bash
-export SEVDESK_API_TOKEN="..."
-```
-3. Add the contents of `skills/sevdesk-agent-cli/SKILL.md` to Claude Code's project instructions (or a repo-level agent instructions file), and require:
-- read-first (`sevdesk-agent read ...`)
-- guarded writes only with explicit human confirmation
-- context handoff via `sevdesk-agent context snapshot` (stdout)
-
-### Gemini CLI
-Gemini CLI can be used with tools/terminal access depending on your setup. Recommended setup:
-1. Provide the CLI (recommended: `npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent ...`, or build + `npm link`).
-2. Provide `SEVDESK_API_TOKEN` in the environment.
-3. Paste/attach `skills/sevdesk-agent-cli/SKILL.md` as the system/project instruction for the session and require all sevdesk interactions to go through `sevdesk-agent`.
+Live tests are read-only and require:
+- `SEVDESK_LIVE_TESTS=1`
+- `SEVDESK_API_TOKEN`
 
 ## Disclaimer
-This project is not affiliated with sevdesk. "sevdesk" is a trademark of its respective owner.
 
-## Credit
-If you use or redistribute this project, please keep the `LICENSE` file (required by the MIT license).
-Preferred attribution:
-- "sevdesk-agent-skill (sevdesk-agent-cli) by Nikolas Gottschol"
+Not affiliated with sevdesk. "sevdesk" is a trademark of its owner.
+
+## License
+
+MIT
