@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { renderReadOperationsMarkdown } from "../../src/lib/docs";
+import {
+  renderInvoiceEditWorkflowText,
+  renderReadOperationsMarkdown,
+} from "../../src/lib/docs";
 import type { OperationCatalogEntry } from "../../src/lib/types";
 
 describe("docs", () => {
@@ -31,5 +34,11 @@ describe("docs", () => {
     // No required query params: example should be minimal.
     expect(md).toContain("sevdesk-agent read getInvoices --output json");
   });
-});
 
+  it("renders invoice edit guidance when generic update route is missing", () => {
+    const text = renderInvoiceEditWorkflowText();
+    expect(text).toContain("no generic `updateInvoice` operation");
+    expect(text).toContain("invoiceResetToDraft");
+    expect(text).toContain("ops list --tag Invoice");
+  });
+});

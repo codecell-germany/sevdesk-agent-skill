@@ -8,6 +8,10 @@ export interface OperationQuirk {
   notes?: string;
 }
 
+export interface OperationQuirkEntry extends OperationQuirk {
+  operationId: string;
+}
+
 const QUIRKS = quirks as Record<string, OperationQuirk>;
 
 export function getOperationQuirk(operationId: string): OperationQuirk | undefined {
@@ -16,6 +20,15 @@ export function getOperationQuirk(operationId: string): OperationQuirk | undefin
 
 export function listOperationQuirks(): Record<string, OperationQuirk> {
   return QUIRKS;
+}
+
+export function listOperationQuirkEntries(): OperationQuirkEntry[] {
+  return Object.entries(QUIRKS)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([operationId, quirk]) => ({
+      operationId,
+      ...quirk,
+    }));
 }
 
 export function validateRuntimeReadQuery(

@@ -1,17 +1,34 @@
 import type { SevdeskClient } from "./client";
 import type { SevdeskResponse } from "./types";
 
-interface VerifyCheck {
+export interface VerifyCheck {
   check: string;
   ok: boolean;
   detail: string;
 }
 
-interface VerifySummary {
+export interface VerifySummary {
   type: "createContact" | "createOrder";
   id: string;
   checks: VerifyCheck[];
   ok: boolean;
+}
+
+export interface ContactVerificationAutoFix {
+  attempted: boolean;
+  changed: boolean;
+  ok: boolean;
+  expectedCustomerNumber: string;
+  beforeCustomerNumber: string;
+  afterCustomerNumber: string;
+  status: number | null;
+  reason?: string;
+  error?: string;
+}
+
+export interface VerifyContactWorkflowSummary {
+  verification: VerifySummary;
+  autoFix: ContactVerificationAutoFix;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -116,11 +133,17 @@ function approxEqual(left: number, right: number, eps = 0.01): boolean {
   return Math.abs(left - right) <= eps;
 }
 
-async function verifyCreateContact(
+interface CreateContactVerificationDetails {
+  summary: VerifySummary;
+  expectedCustomerNumber: string;
+  actualCustomerNumber: string;
+}
+
+async function collectCreateContactVerificationDetails(
   client: SevdeskClient,
   body: unknown,
   writeResponse: SevdeskResponse
-): Promise<VerifySummary> {
+): Promise<CreateContactVerificationDetails> {
   const contactId =
     extractCreatedId(writeResponse.data, ["contact", "objects"]) ??
     (() => {
@@ -178,11 +201,28 @@ async function verifyCreateContact(
   });
 
   return {
-    type: "createContact",
-    id: contactId,
-    checks,
-    ok: checks.every((check) => check.ok),
+    summary: {
+      type: "createContact",
+      id: contactId,
+      checks,
+      ok: checks.every((check) => check.ok),
+    },
+    expectedCustomerNumber,
+    actualCustomerNumber,
   };
+}
+
+async function verifyCreateContact(
+  client: SevdeskClient,
+  body: unknown,
+  writeResponse: SevdeskResponse
+): Promise<VerifySummary> {
+  const details = await collectCreateContactVerificationDetails(
+    client,
+    body,
+    writeResponse
+  );
+  return details.summary;
 }
 
 async function verifyCreateOrder(
@@ -275,4 +315,77 @@ export async function runWriteVerification(options: {
   }
 
   return null;
+}
+
+export async function verifyAndMaybeFixCreateContact(options: {
+  client: SevdeskClient;
+  body: unknown;
+  writeResponse: SevdeskResponse;
+  autoFixCustomerNumber: boolean;
+}): Promise<VerifyContactWorkflowSummary> {
+  let details = await collectCreateContactVerificationDetails(
+    options.client,
+    options.body,
+    options.writeResponse
+  );
+
+  const autoFix: ContactVerificationAutoFix = {
+    attempted: false,
+    changed: false,
+    ok: true,
+    expectedCustomerNumber: details.expectedCustomerNumber,
+    beforeCustomerNumber: details.actualCustomerNumber,
+    afterCustomerNumber: details.actualCustomerNumber,
+    status: null,
+  };
+
+  if (!options.autoFixCustomerNumber) {
+    autoFix.reason = "auto-fix disabled";
+    return { verification: details.summary, autoFix };
+  }
+
+  if (!details.expectedCustomerNumber) {
+    autoFix.reason = "no expected customerNumber in payload";
+    return { verification: details.summary, autoFix };
+  }
+
+  if (details.expectedCustomerNumber === details.actualCustomerNumber) {
+    autoFix.reason = "customerNumber already matches";
+    return { verification: details.summary, autoFix };
+  }
+
+  autoFix.attempted = true;
+
+  const updateResponse = await options.client.request({
+    method: "PUT",
+    path: `/Contact/${details.summary.id}`,
+    body: {
+      contact: {
+        id: details.summary.id,
+        objectName: "Contact",
+        customerNumber: details.expectedCustomerNumber,
+      },
+    },
+  });
+  autoFix.status = updateResponse.status;
+
+  if (!updateResponse.ok) {
+    autoFix.ok = false;
+    autoFix.error = `updateContact failed with status ${updateResponse.status}`;
+    return { verification: details.summary, autoFix };
+  }
+
+  details = await collectCreateContactVerificationDetails(
+    options.client,
+    options.body,
+    options.writeResponse
+  );
+  autoFix.afterCustomerNumber = details.actualCustomerNumber;
+  autoFix.changed = details.actualCustomerNumber === details.expectedCustomerNumber;
+  autoFix.ok = autoFix.changed;
+  if (!autoFix.changed) {
+    autoFix.error = "customerNumber mismatch persists after updateContact";
+  }
+
+  return { verification: details.summary, autoFix };
 }
