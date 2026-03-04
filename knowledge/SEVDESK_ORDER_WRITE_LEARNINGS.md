@@ -164,6 +164,11 @@ The following workflow hardening is now built into the CLI:
 - `createContact`: checks `customerNumber`, `parent`, and address count.
 - `createOrder`: checks recipient contact id, positions, status, and `sumNet` (when derivable).
 
+3b. Contact verify + auto-fix mode
+- `write createContact ... --verify-contact` adds dedicated post-write validation for contacts.
+- If `customerNumber` differs from the expected payload, CLI attempts auto-fix via `updateContact`.
+- Disable auto-fix explicitly with `--no-fix-contact`.
+
 4. Local contact finder
 - `find-contact <term>` performs reproducible local matching from full contact list.
 - scoring uses `name`, `name2`, `surename`, `familyname`, `customerNumber`.
@@ -174,3 +179,79 @@ The following workflow hardening is now built into the CLI:
 6. Startup fallback
 - If the wrapper is not executable, CLI error output suggests:
   - `node dist/index.js <command> ...`
+
+7. Stable quirks JSON for parser workflows
+- `ops-quirks --json` keeps object-mapping compatibility.
+- New parser-friendly variant:
+  - `ops-quirks --json-array`
+
+8. Invoice edit workflow (no generic update route)
+- There is no generic `updateInvoice` operation in the current catalog.
+- CLI now offers:
+  - explicit hint when `updateInvoice` is requested,
+  - runbook output via `sevdesk-agent docs invoice-edit`.
+
+## 9. Rechnung-Workflow-Härtung (2026-02-27)
+
+Aus realem Feedback zur Rechnungserstellung wurden folgende Verbesserungen umgesetzt:
+
+1. `createInvoiceByFactory` Verifikation erweitert
+- `write createInvoiceByFactory --verify` prüft nun zusätzlich:
+  - `invoice.contact.id`
+  - Positionsanzahl
+  - `status`
+  - `taxRule`
+  - `sumNet` / `sumTax` / `sumGross`
+  - `invoiceNumber` (kontextabhängig auf Pflicht)
+
+2. PDF-Ausgabe mit geringerem Context-Footprint
+- Bei `read orderGetPdf|invoiceGetPdf --decode-pdf ...` kann die base64-Nutzlast im Output unterdrückt werden.
+- Neue Option: `--suppress-content` (default aktiv, zusammen mit `--decode-pdf`).
+
+3. Finalisierungs-Runbook für Rechnungen
+- Neues Hilfe-Kommando:
+  - `sevdesk-agent docs invoice-finalize`
+- Beschreibt robusten Ablauf für Draft -> Zustellung/Aktions-Endpoint -> Re-Read/Prüfung -> Safe PDF Export.
+
+## 9. Session notes (2026-02-27): New invoice for existing person contact + PDF
+
+### Payload/operation that worked
+- Write call succeeded with:
+  - `write createInvoiceByFactory --body-file <file> --execute --confirm-execute yes --allow-write --verify --output json`
+- Working top-level shape:
+  - `invoice` object with full meta (contact, contactPerson, invoiceDate, status, invoiceType, currency, tax fields, address, addressCountry, discount, timeToPay, showNet, mapAll)
+  - `invoicePosSave` array with at least one position (`objectName`, `mapAll`, `quantity`, `price`, `name`, `text`, `unity`, `taxRate`)
+
+### Recipient behavior
+- For "invoice to a person in a company", set `invoice.contact.id` to the person contact id.
+- Keep `invoice.address` explicit as multiline string (company + person + address) to stabilize the rendered PDF address block.
+
+### PDF/render behavior observed
+- `invoiceGetPdf --decode-pdf <path>` writes the PDF successfully, but CLI JSON output can still be very large because API returns base64 content in response payload.
+- `invoiceRender` was accepted (`201`), but invoice stayed in draft (`status: 100`) and `invoiceNumber` remained `null` in this run.
+- Practical interpretation: draft invoice + preview PDF is possible; numbering/final status likely requires the send/finalization flow (not executed automatically).
+
+## 10. Session notes (2026-03-03): Edit existing offer positions (createOrder as upsert)
+
+### What worked for editing an existing offer
+- Existing order was updated via `createOrder` (`/Order/Factory/saveOrder`) by passing:
+  - `order.id` = existing order id
+  - `orderPosDelete` = array of existing position refs
+  - `orderPosSave` = new replacement positions
+
+### Important payload detail
+- `orderPosDelete` must be passed as an array:
+```json
+"orderPosDelete": [
+  { "id": "OLD_POS_ID", "objectName": "OrderPos" }
+]
+```
+- Passing a single object can fail with:
+  - `orderPosDelete expected array with 'id' and 'objectName'. integer given`
+
+### Optional position behavior
+- A position with `"optional": true` is stored with:
+  - `optional = 1`
+  - `optionalChargeable = 0` (default)
+- Optional positions are not included in order net total (`sumNet`).
+- Therefore `--verify` sum comparison can report mismatch if expected sum includes optional items.

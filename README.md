@@ -9,10 +9,12 @@ Agent-first CLI + skill package for sevdesk with a read-first workflow, API-comp
 - Fast write workflows for `POST` / `PUT` / `PATCH` (no generic write blocker).
 - Explicit delete guard for `DELETE` operations.
 - Built-in preflight validation for high-impact writes (`createContact`, `createOrder`).
-- Post-write verification (`--verify`, `--verify-contact`) including contact customer-number checks.
+- Post-write verification (`--verify`, `--verify-contact`) including:
+  - contact customer-number checks
+  - `createInvoiceByFactory` checks (contact, positions, sums, status, taxRule, invoiceNumber)
 - Contact lookup helper with local scoring (`find-contact`).
 - Safe PDF mode for `orderGetPdf` / `invoiceGetPdf` (`preventSendBy=1` default).
-- Direct PDF file decode (`--decode-pdf`).
+- Direct PDF file decode (`--decode-pdf`) with optional payload slimming (`--suppress-content`, default on when decoding).
 - Runtime quirk handling (`ops-quirks`, normalization in `read`).
 - Handoff snapshots for multi-agent continuation (`context snapshot`).
 
@@ -44,7 +46,7 @@ What got simpler:
 
 ```bash
 sevdesk-agent write createOrder --body-file payloads/order.create.json --verify
-sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer-12345.pdf --output json
+sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer-12345.pdf --suppress-content --output json
 ```
 
 What got simpler:
@@ -63,7 +65,18 @@ sevdesk-agent write invoiceRender --path invoiceId=98765
 What got simpler:
 - Clear action-based invoice workflow instead of searching for a non-existing generic `updateInvoice` route.
 
-### 4) Controlled Deletion (Guarded)
+### 4) Invoice Create + Verify + Finalize Runbook
+
+```bash
+sevdesk-agent write createInvoiceByFactory --body-file payloads/invoice.create.json --verify
+sevdesk-agent docs invoice-finalize
+```
+
+What got simpler:
+- Automatic post-write sanity checks directly after invoice creation.
+- Clear finalize sequence documented in CLI (`invoiceRender`, send action, final state checks, safe PDF export).
+
+### 5) Controlled Deletion (Guarded)
 
 ```bash
 sevdesk-agent write deleteOrder --path orderId=12345 --execute --confirm-execute yes --allow-write
@@ -73,7 +86,7 @@ What got simpler:
 - Only destructive operations require guard confirmation.
 - Regular write flows stay fast.
 
-### 5) Agent Handoff Snapshot
+### 6) Agent Handoff Snapshot
 
 ```bash
 sevdesk-agent context snapshot --include-default --max-objects 20 --output .context/sevdesk-context-snapshot.json
@@ -111,6 +124,7 @@ sevdesk-agent read bookkeepingSystemVersion --output json
 - `sevdesk-agent find-contact <term> ...`
 - `sevdesk-agent docs read-ops --output knowledge/READ_OPERATIONS.md`
 - `sevdesk-agent docs invoice-edit`
+- `sevdesk-agent docs invoice-finalize`
 - `sevdesk-agent context snapshot ...`
 
 ## Guard Model

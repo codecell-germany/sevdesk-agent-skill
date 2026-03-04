@@ -266,3 +266,35 @@ export function renderInvoiceEditWorkflowText(): string {
     "",
   ].join("\n");
 }
+
+export function renderInvoiceFinalizeWorkflowText(): string {
+  return [
+    "Invoice finalize workflow guide:",
+    "",
+    "Goal:",
+    "- Move invoice from draft to a numbered/finalized state in a controlled, auditable sequence.",
+    "",
+    "Recommended sequence:",
+    "1. Read current invoice state:",
+    "   sevdesk-agent read getInvoiceById --path invoiceId=<id> --output json",
+    "",
+    "2. If needed, render document data before delivery:",
+    "   sevdesk-agent write invoiceRender --path invoiceId=<id>",
+    "",
+    "3. Trigger a delivery action that advances status/numbering (depending on process):",
+    "   - Email flow: `sendInvoiceViaEMail`",
+    "   - Manual/send-type flow: `invoiceSendBy`",
+    "",
+    "4. Re-read and verify final state:",
+    "   sevdesk-agent read getInvoiceById --path invoiceId=<id> --output json",
+    "   Check: `status`, `invoiceNumber`, `sendDate`, totals.",
+    "",
+    "5. Export PDF in safe mode for archival/output:",
+    "   sevdesk-agent read invoiceGetPdf --path invoiceId=<id> --decode-pdf output/invoice-<id>.pdf --output json",
+    "",
+    "Notes:",
+    "- `invoiceRender` alone may not assign a final invoice number.",
+    "- Use `--verify` on `createInvoiceByFactory` to run built-in post-write checks.",
+    "",
+  ].join("\n");
+}

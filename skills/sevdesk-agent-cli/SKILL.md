@@ -42,7 +42,7 @@ Use this skill when tasks involve sevdesk API access from this workspace, especi
    - `POST` / `PUT` / `PATCH`: `sevdesk-agent write <operationId> ...`
    - `DELETE`: `sevdesk-agent write <operationId> --execute --confirm-execute yes --allow-write ...`
    - for `createContact` / `createOrder`, local preflight validation runs by default
-   - add `--verify` to run read-only post-write checks
+   - add `--verify` to run read-only post-write checks (including `createInvoiceByFactory`)
    - for createContact workflows, prefer `--verify-contact` (includes customerNumber mismatch checks; auto-fix enabled by default and can be disabled via `--no-fix-contact`)
 4. Persist agent handoff context:
    - stdout (default): `sevdesk-agent context snapshot`
@@ -59,7 +59,7 @@ Use this skill when tasks involve sevdesk API access from this workspace, especi
 3. Angebot erstellen:
    - `sevdesk-agent write createOrder ... --verify`
 4. PDF export ohne Status-Nebeneffekt:
-   - `sevdesk-agent read orderGetPdf --path orderId=<id> --decode-pdf output/<file>.pdf`
+   - `sevdesk-agent read orderGetPdf --path orderId=<id> --decode-pdf output/<file>.pdf --suppress-content`
    - `preventSendBy=1` wird standardmäßig gesetzt (`--no-safe-pdf` deaktiviert das)
 5. Handoff:
    - `sevdesk-agent context snapshot --include-default`
@@ -70,11 +70,13 @@ Use this skill when tasks involve sevdesk API access from this workspace, especi
 - For `*GetPdf` endpoints, responses are typically JSON wrapped in `data.objects` (often containing `filename`, `mimetype`, and base64 `content`). The CLI does not automatically write files to disk.
 - for `orderGetPdf` / `invoiceGetPdf`, CLI now applies `preventSendBy=1` by default (safe PDF mode).
 - use `--decode-pdf <path>` for direct PDF file output without `jq`/`base64`.
+- with `--decode-pdf`, use `--suppress-content` (default) to keep large base64 payload out of CLI output.
 - If the server returns a non-JSON binary content-type (pdf/xml/zip/csv), the CLI prints metadata (`binary`, `bytes`, `contentType`) instead of raw bytes.
 - Runtime-required query quirks are enforced for selected operations (e.g. `contactCustomerNumberAvailabilityCheck` requires `customerNumber` at runtime).
 - Use `op-show` or `ops-quirks` to see operation-specific runtime quirks.
 - `ops-quirks --json` returns an object mapping; for stable array parsing use `ops-quirks --json-array`.
 - if you need invoice mutation guidance and `updateInvoice` is missing, run `sevdesk-agent docs invoice-edit`.
+- for numbering/finalization sequence after invoice creation, run `sevdesk-agent docs invoice-finalize`.
 
 ## References
 - Command cheat sheet: `references/command-cheatsheet.md`

@@ -71,6 +71,70 @@ describe("runWriteVerification", () => {
     expect(verification).toBeNull();
   });
 
+  it("verifies createInvoiceByFactory with contact, positions, sums, status and taxRule", async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: {},
+        data: {
+          objects: {
+            id: "321",
+            contact: { id: "77", objectName: "Contact" },
+            status: "100",
+            taxRule: { id: "1", objectName: "TaxRule" },
+            sumNet: "100",
+            sumTax: "19",
+            sumGross: "119",
+            invoiceNumber: null,
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: {},
+        data: {
+          objects: [{ id: "1" }],
+        },
+      });
+
+    const client = { request } as unknown as SevdeskClient;
+    const verification = await runWriteVerification({
+      operationId: "createInvoiceByFactory",
+      client,
+      body: {
+        invoice: {
+          contact: { id: "77", objectName: "Contact" },
+          status: 100,
+          taxRule: { id: "1", objectName: "TaxRule" },
+          showNet: true,
+        },
+        invoicePosSave: [
+          {
+            quantity: 1,
+            price: 100,
+            taxRate: 19,
+          },
+        ],
+      },
+      writeResponse: {
+        ok: true,
+        status: 201,
+        headers: {},
+        data: { objects: { invoice: { id: "321" } } },
+      },
+    });
+
+    expect(verification?.type).toBe("createInvoiceByFactory");
+    expect(verification?.ok).toBe(true);
+    expect(verification?.checks.some((check) => check.check === "invoiceNumber")).toBe(
+      true
+    );
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
   it("can auto-fix createContact customerNumber mismatch", async () => {
     const request = vi
       .fn()

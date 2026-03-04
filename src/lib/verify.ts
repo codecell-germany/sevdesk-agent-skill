@@ -8,7 +8,7 @@ export interface VerifyCheck {
 }
 
 export interface VerifySummary {
-  type: "createContact" | "createOrder";
+  type: "createContact" | "createOrder" | "createInvoiceByFactory";
   id: string;
   checks: VerifyCheck[];
   ok: boolean;
@@ -127,6 +127,68 @@ function expectedOrderNetFromBody(body: unknown): number | null {
   }
 
   return total;
+}
+
+interface ExpectedInvoiceTotals {
+  net: number;
+  tax: number;
+  gross: number;
+}
+
+function expectedInvoiceTotalsFromBody(body: unknown): ExpectedInvoiceTotals | null {
+  const payload = asRecord(body);
+  if (!payload) {
+    return null;
+  }
+
+  const invoice = asRecord(payload.invoice);
+  if (!invoice || typeof invoice.showNet !== "boolean") {
+    return null;
+  }
+
+  const positions = asArray(payload.invoicePosSave);
+  if (positions.length === 0) {
+    return null;
+  }
+
+  let net = 0;
+  let tax = 0;
+  let gross = 0;
+  for (const pos of positions) {
+    const rec = asRecord(pos);
+    if (!rec) {
+      return null;
+    }
+    const quantity = toNumber(rec.quantity);
+    const price = toNumber(rec.price);
+    const taxRate = toNumber(rec.taxRate);
+    if (quantity === null || price === null || taxRate === null) {
+      return null;
+    }
+
+    if (invoice.showNet) {
+      const lineNet = quantity * price;
+      const lineTax = lineNet * (taxRate / 100);
+      const lineGross = lineNet + lineTax;
+      net += lineNet;
+      tax += lineTax;
+      gross += lineGross;
+      continue;
+    }
+
+    const lineGross = quantity * price;
+    const divisor = 1 + taxRate / 100;
+    if (divisor === 0) {
+      return null;
+    }
+    const lineNet = lineGross / divisor;
+    const lineTax = lineGross - lineNet;
+    net += lineNet;
+    tax += lineTax;
+    gross += lineGross;
+  }
+
+  return { net, tax, gross };
 }
 
 function approxEqual(left: number, right: number, eps = 0.01): boolean {
@@ -300,6 +362,121 @@ async function verifyCreateOrder(
   };
 }
 
+async function verifyCreateInvoiceByFactory(
+  client: SevdeskClient,
+  body: unknown,
+  writeResponse: SevdeskResponse
+): Promise<VerifySummary> {
+  const invoiceId =
+    extractCreatedId(writeResponse.data, ["invoice", "objects"]) ??
+    (() => {
+      throw new Error(
+        "verify(createInvoiceByFactory): unable to determine created invoice id."
+      );
+    })();
+
+  const expectedInvoice = asRecord(asRecord(body)?.invoice);
+  const expectedContactId = toId(asRecord(expectedInvoice?.contact)?.id);
+  const expectedStatus = toId(expectedInvoice?.status);
+  const expectedTaxRuleId = toId(asRecord(expectedInvoice?.taxRule)?.id);
+  const expectedInvoiceNumber = String(expectedInvoice?.invoiceNumber ?? "").trim();
+  const expectedPosCount = asArray(asRecord(body)?.invoicePosSave).length;
+  const expectedTotals = expectedInvoiceTotalsFromBody(body);
+
+  const invoiceResponse = await client.request({
+    method: "GET",
+    path: `/Invoice/${invoiceId}`,
+  });
+  const invoiceObject = findPrimaryObject(invoiceResponse.data) ?? {};
+  const actualContactId = toId(asRecord(invoiceObject.contact)?.id);
+  const actualStatus = toId(invoiceObject.status);
+  const actualTaxRuleId = toId(asRecord(invoiceObject.taxRule)?.id);
+  const actualInvoiceNumber = toId(invoiceObject.invoiceNumber);
+  const actualSumNet = toNumber(invoiceObject.sumNet);
+  const actualSumTax = toNumber(invoiceObject.sumTax);
+  const actualSumGross = toNumber(invoiceObject.sumGross);
+
+  const positionsResponse = await client.request({
+    method: "GET",
+    path: `/Invoice/${invoiceId}/getPositions`,
+  });
+  const actualPosCount = asArray(asRecord(positionsResponse.data)?.objects).length;
+
+  const actualStatusNumber = toNumber(actualStatus);
+  const invoiceNumberRequired =
+    actualStatusNumber !== null ? actualStatusNumber >= 200 : false;
+
+  const checks: VerifyCheck[] = [];
+  checks.push({
+    check: "invoice.contact.id",
+    ok: expectedContactId ? expectedContactId === actualContactId : actualContactId !== "",
+    detail: expectedContactId
+      ? `expected=${expectedContactId} actual=${actualContactId || "(empty)"}`
+      : `actual=${actualContactId || "(empty)"}`,
+  });
+
+  checks.push({
+    check: "positions",
+    ok: expectedPosCount > 0 ? actualPosCount >= expectedPosCount : actualPosCount > 0,
+    detail: `expected>=${expectedPosCount} actual=${actualPosCount}`,
+  });
+
+  checks.push({
+    check: "status",
+    ok: expectedStatus ? expectedStatus === actualStatus : actualStatus !== "",
+    detail: expectedStatus
+      ? `expected=${expectedStatus} actual=${actualStatus || "(empty)"}`
+      : `actual=${actualStatus || "(empty)"}`,
+  });
+
+  checks.push({
+    check: "taxRule",
+    ok: expectedTaxRuleId ? expectedTaxRuleId === actualTaxRuleId : actualTaxRuleId !== "",
+    detail: expectedTaxRuleId
+      ? `expected=${expectedTaxRuleId} actual=${actualTaxRuleId || "(empty)"}`
+      : `actual=${actualTaxRuleId || "(empty)"}`,
+  });
+
+  checks.push({
+    check: "sumNet/sumTax/sumGross",
+    ok:
+      expectedTotals === null ||
+      actualSumNet === null ||
+      actualSumTax === null ||
+      actualSumGross === null
+        ? actualSumNet !== null &&
+          actualSumTax !== null &&
+          actualSumGross !== null &&
+          actualSumGross >= actualSumNet
+        : approxEqual(expectedTotals.net, actualSumNet) &&
+          approxEqual(expectedTotals.tax, actualSumTax) &&
+          approxEqual(expectedTotals.gross, actualSumGross),
+    detail:
+      expectedTotals === null
+        ? `actualNet=${actualSumNet ?? "(n/a)"} actualTax=${actualSumTax ?? "(n/a)"} actualGross=${actualSumGross ?? "(n/a)"}`
+        : `expectedNet=${expectedTotals.net.toFixed(2)} actualNet=${actualSumNet?.toFixed(2) ?? "(n/a)"} expectedTax=${expectedTotals.tax.toFixed(2)} actualTax=${actualSumTax?.toFixed(2) ?? "(n/a)"} expectedGross=${expectedTotals.gross.toFixed(2)} actualGross=${actualSumGross?.toFixed(2) ?? "(n/a)"}`,
+  });
+
+  checks.push({
+    check: "invoiceNumber",
+    ok: expectedInvoiceNumber
+      ? expectedInvoiceNumber === actualInvoiceNumber
+      : invoiceNumberRequired
+        ? actualInvoiceNumber !== ""
+        : true,
+    detail: expectedInvoiceNumber
+      ? `expected=${expectedInvoiceNumber} actual=${actualInvoiceNumber || "(empty)"}`
+      : `required=${invoiceNumberRequired} actual=${actualInvoiceNumber || "(empty)"}`,
+  });
+
+  return {
+    type: "createInvoiceByFactory",
+    id: invoiceId,
+    checks,
+    ok: checks.every((check) => check.ok),
+  };
+}
+
 export async function runWriteVerification(options: {
   operationId: string;
   client: SevdeskClient;
@@ -312,6 +489,14 @@ export async function runWriteVerification(options: {
 
   if (options.operationId === "createOrder") {
     return verifyCreateOrder(options.client, options.body, options.writeResponse);
+  }
+
+  if (options.operationId === "createInvoiceByFactory") {
+    return verifyCreateInvoiceByFactory(
+      options.client,
+      options.body,
+      options.writeResponse
+    );
   }
 
   return null;
