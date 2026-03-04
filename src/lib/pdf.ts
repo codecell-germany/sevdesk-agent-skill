@@ -54,6 +54,33 @@ export function extractBase64PdfContent(value: unknown): string | null {
   return null;
 }
 
+export function redactPdfContent(value: unknown): unknown {
+  const top = asRecord(value);
+  if (!top) {
+    return value;
+  }
+
+  const clonedTop: Record<string, unknown> = { ...top };
+
+  if (typeof clonedTop.content === "string" && clonedTop.content.trim() !== "") {
+    clonedTop.content = "(omitted base64 PDF content)";
+  }
+
+  const objects = asRecord(clonedTop.objects);
+  if (objects) {
+    const clonedObjects: Record<string, unknown> = { ...objects };
+    if (
+      typeof clonedObjects.content === "string" &&
+      clonedObjects.content.trim() !== ""
+    ) {
+      clonedObjects.content = "(omitted base64 PDF content)";
+    }
+    clonedTop.objects = clonedObjects;
+  }
+
+  return clonedTop;
+}
+
 export async function decodePdfToFile(
   targetPath: string,
   base64Content: string

@@ -19,6 +19,7 @@ import {
   applySafePdfQueryDefaults,
   decodePdfToFile,
   extractBase64PdfContent,
+  redactPdfContent,
   shouldAutoProtectPdf,
 } from "./lib/pdf";
 import { validateWritePreflight } from "./lib/preflight";
@@ -39,6 +40,7 @@ import {
 } from "./lib/verify";
 import {
   renderInvoiceEditWorkflowText,
+  renderInvoiceFinalizeWorkflowText,
   renderReadOperationsMarkdown,
   renderReadUsageText,
 } from "./lib/docs";
@@ -214,6 +216,12 @@ program
     "--decode-pdf <file>",
     "For orderGetPdf/invoiceGetPdf: decode base64 PDF content and write directly to file"
   )
+  .option(
+    "--suppress-content",
+    "With --decode-pdf: suppress base64 PDF content in CLI output",
+    true
+  )
+  .option("--no-suppress-content", "Keep full base64 content in CLI output")
   .option("--output <mode>", "pretty|json|raw", "pretty")
   .option("--save <file>", "Save full response to file")
   .addHelpText(
@@ -278,6 +286,11 @@ program
     }
 
     if (!opts.normalize) {
+      const responseForOutput =
+        opts.decodePdf && opts.suppressContent
+          ? { ...response, data: redactPdfContent(response.data) }
+          : response;
+
       if (opts.decodePdf) {
         const base64Content = extractBase64PdfContent(response.data);
         if (!base64Content) {
@@ -286,9 +299,12 @@ program
           );
         }
         extras.decodedPdfPath = await decodePdfToFile(opts.decodePdf, base64Content);
+        if (opts.suppressContent) {
+          extras.suppressedPdfContent = true;
+        }
       }
 
-      await printResponse(response, opts.output, opts.save, extras);
+      await printResponse(responseForOutput, opts.output, opts.save, extras);
       return;
     }
 
@@ -303,11 +319,23 @@ program
         );
       }
       extras.decodedPdfPath = await decodePdfToFile(opts.decodePdf, base64Content);
+      if (opts.suppressContent) {
+        extras.suppressedPdfContent = true;
+      }
     }
 
-    await printResponse(response, opts.output, opts.save, {
+    const responseForOutput =
+      opts.decodePdf && opts.suppressContent
+        ? { ...response, data: redactPdfContent(response.data) }
+        : response;
+    const normalizedDataForOutput =
+      opts.decodePdf && opts.suppressContent
+        ? redactPdfContent(normalization.normalizedData)
+        : normalization.normalizedData;
+
+    await printResponse(responseForOutput, opts.output, opts.save, {
       ...extras,
-      normalizedData: normalization.normalizedData,
+      normalizedData: normalizedDataForOutput,
       normalizationWarnings: normalization.warnings,
       runtimeQuirk: getOperationQuirk(operationId) ?? null,
     });
@@ -416,6 +444,13 @@ docs
   .description("Explain the recommended invoice edit workflow")
   .action(() => {
     process.stdout.write(renderInvoiceEditWorkflowText());
+  });
+
+docs
+  .command("invoice-finalize")
+  .description("Explain the recommended invoice finalize workflow")
+  .action(() => {
+    process.stdout.write(renderInvoiceFinalizeWorkflowText());
   });
 
 program

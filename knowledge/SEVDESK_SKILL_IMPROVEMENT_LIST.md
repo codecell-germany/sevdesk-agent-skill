@@ -155,3 +155,68 @@ Den Ablauf `Kontakt anlegen -> Angebot erstellen -> PDF ausgeben` robust, reprod
   - Required: `--execute --confirm-execute yes` + `SEVDESK_ALLOW_WRITE=true` (oder `--allow-write`)
 - `POST` / `PUT` / `PATCH` laufen direkt (inkl. bestehender Preflight/Verify-Features).
 - Ziel: weniger Reibung in Agent-Workflows bei gleichzeitiger Absicherung destruktiver Aktionen.
+
+## Umsetzung aus Prozess-Feedback Rechnung (2026-02-27)
+
+- [x] `createInvoiceByFactory` Verify erweitert
+  - Prüft jetzt: `invoice.contact.id`, Positionen, `status`, `taxRule`, `sumNet/sumTax/sumGross`, `invoiceNumber`.
+- [x] PDF-Output entschlackt bei `--decode-pdf`
+  - Neue Read-Option: `--suppress-content` (default aktiv), entfernt base64-`content` aus CLI-Output.
+- [x] Rechnung-Finalisierung als Runbook ergänzt
+  - Neues Kommando: `sevdesk-agent docs invoice-finalize`.
+
+## Prozess-Feedback: Rechnung erzeugen (2026-02-27)
+
+### Was gut war
+1. Read-first Ablauf war stabil
+- Discovery + Analyse (`ops list`, `op-show`, `ops-quirks`, Reads auf Kontakte/Rechnungen) funktionierten zuverlässig.
+
+2. Rechnungserstellung per Factory-Endpoint funktionierte im ersten Write
+- `createInvoiceByFactory` lieferte sauber `201` mit `invoice.id`.
+- Einfache 1-Positions-Rechnung ließ sich ohne API-Fehler erzeugen.
+
+3. Empfängersteuerung ist gut lösbar
+- Person als Unterkontakt konnte direkt als Rechnungsempfänger gesetzt werden (`invoice.contact.id`).
+- Explizites multiline-`invoice.address` stabilisierte die PDF-Anschrift.
+
+4. PDF-Export technisch zuverlässig
+- `invoiceGetPdf --decode-pdf <path>` erzeugte lokal sofort eine nutzbare PDF-Datei.
+
+5. Kontext-Handoff gut gelöst
+- `context snapshot` lieferte die Übergabe-Datei konsistent.
+
+### Was nicht gut war
+1. Sehr große stdout-Ausgabe bei PDF-Reads trotz `--decode-pdf`
+- Die API liefert weiterhin base64 im JSON-Body; das bläht CLI-Ausgabe und Agent-Context stark auf.
+
+2. Kein Verify-Modul für Rechnungsanlage
+- `--verify` bei `createInvoiceByFactory` meldete: `No built-in verification`.
+- Dadurch fehlen automatische Nachprüfungen (Empfänger, Positionen, Summen, Status, Nummerierung).
+
+3. Unklare Finalisierung/Nummerierung
+- `invoiceRender` gab `201`, aber Rechnung blieb `status=100` und `invoiceNumber=null`.
+- Für den Agenten ist der finale Weg zur Nummerierung nicht hinreichend geführt (Render vs. Send/Finalize).
+
+4. `op-show` ist für komplexe Writes zu dünn
+- Pflichtfelder/Schema für `createInvoiceByFactory` mussten aus OpenAPI separat gelesen werden.
+- Das kostet Zeit und erhöht Fehlerwahrscheinlichkeit.
+
+### Konkrete Verbesserungen (Backlog)
+
+#### P0
+1. `createInvoiceByFactory` Verify implementieren
+- Prüfen: `contact.id`, Positionsanzahl, `sumNet/sumTax/sumGross`, `status`, `invoiceNumber`, `taxRule`.
+
+2. `invoice-finalize` Runbook/Command ergänzen
+- Klarer, robuster Ablauf: Draft -> Nummerierung/Finalstatus -> PDF ohne Seiteneffekte.
+- Ergebnis soll maschinenlesbar bestätigen, dass Nummer vergeben wurde.
+
+3. PDF-Read-Output entschlacken
+- Option wie `--suppress-content` oder automatisches Entfernen von `data.objects.content` bei `--decode-pdf`.
+
+#### P1
+4. `op-show --schema` oder `docs write-op <operationId>`
+- Zeigt Required-Felder + Minimal-Beispielpayload direkt aus CLI.
+
+5. `create-invoice` High-Level Kommando
+- Geführter Aufruf analog Angebots-Workflow (Empfänger, Positionen, Steuer, Adresse, Verify, PDF).

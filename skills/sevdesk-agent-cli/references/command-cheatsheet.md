@@ -33,7 +33,7 @@ PDF safety defaults:
 
 Direct PDF decode:
 ```bash
-sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer.pdf --output json
+sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer.pdf --suppress-content --output json
 ```
 
 ## Write call (`POST`/`PUT`/`PATCH` directly)
@@ -57,6 +57,11 @@ Disable preflight (rare):
 sevdesk-agent write createOrder --body-file ./payloads/order.json --no-preflight
 ```
 
+Invoice create verification:
+```bash
+sevdesk-agent write createInvoiceByFactory --body-file ./payloads/invoice.create.json --verify
+```
+
 ## Delete call (guarded)
 ```bash
 sevdesk-agent write deleteOrder \
@@ -69,6 +74,11 @@ sevdesk-agent write deleteOrder \
 Invoice edit workflow (no generic updateInvoice route):
 ```bash
 sevdesk-agent docs invoice-edit
+```
+
+Invoice finalize workflow:
+```bash
+sevdesk-agent docs invoice-finalize
 ```
 
 ## Context snapshot for agent continuation

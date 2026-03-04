@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   renderInvoiceEditWorkflowText,
+  renderInvoiceFinalizeWorkflowText,
   renderReadOperationsMarkdown,
 } from "../../src/lib/docs";
 import type { OperationCatalogEntry } from "../../src/lib/types";
@@ -40,5 +41,13 @@ describe("docs", () => {
     expect(text).toContain("no generic `updateInvoice` operation");
     expect(text).toContain("invoiceResetToDraft");
     expect(text).toContain("ops list --tag Invoice");
+  });
+
+  it("renders invoice finalize workflow guidance", () => {
+    const text = renderInvoiceFinalizeWorkflowText();
+    expect(text).toContain("Invoice finalize workflow guide");
+    expect(text).toContain("invoiceRender");
+    expect(text).toContain("sendInvoiceViaEMail");
+    expect(text).toContain("invoiceSendBy");
   });
 });
