@@ -255,3 +255,35 @@ Aus realem Feedback zur Rechnungserstellung wurden folgende Verbesserungen umges
   - `optionalChargeable = 0` (default)
 - Optional positions are not included in order net total (`sumNet`).
 - Therefore `--verify` sum comparison can report mismatch if expected sum includes optional items.
+
+## 11. Session notes (2026-03-05): ACF-only follow-up invoice (CDU Hagen)
+
+### Reliable way to find legacy billed items
+- For recurring third-party license costs (example: ACF), searching invoice headers is not enough.
+- Robust pattern:
+  1. list customer invoices via `getInvoices` with `contact[id]`
+  2. inspect each via `getInvoicePositionsById`
+  3. grep positions for product markers (`acf`, `advanced custom fields`, etc.)
+
+### Concrete match used
+- Legacy ACF position found in:
+  - `invoiceId=92933885`
+  - position name: `ACF PRO - Personal`
+  - unity: `id=374970` (`Jahr(e)`)
+
+### Follow-up invoice pattern that worked
+- Create a draft invoice with only one position (`ACF PRO - Personal`) and explicit service period in `headText`.
+- Keep explicit multiline `address` field to stabilize recipient rendering.
+- Use `createInvoiceByFactory --verify` and then `invoiceGetPdf --decode-pdf` for immediate handoff.
+
+## 12. Session notes (2026-03-05): Invoice date vs. delivery date validation
+
+### Observed API rule
+- `createInvoiceByFactory` can return `422` when:
+  - `invoiceDate` is equal to `deliveryDate`
+- Error message from API:
+  - `The invoiceDate (...) must be before the deliveryDate (...).`
+
+### Practical fix
+- Ensure `deliveryDate` is at least one day after `invoiceDate` for affected invoice types/workflows.
+- Apply minimal patch only to `deliveryDate` and retry the same payload.
