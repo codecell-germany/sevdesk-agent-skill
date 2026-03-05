@@ -32,7 +32,10 @@ Use this skill when tasks involve sevdesk API access from this workspace, especi
    - stable parser output: `sevdesk-agent ops-quirks --json-array`
 2. Run read calls first:
    - `sevdesk-agent read <operationId> --query key=value`
+   - `sevdesk-agent read find-contact --query term="<name>" --output json` (alias for top-level find-contact)
    - local contact search helper: `sevdesk-agent find-contact <term> --output json`
+   - billing helper: `sevdesk-agent resolve-billing-contact <term> --output json`
+   - invoice text search: `sevdesk-agent find-invoice <term> --deep-scan --output json`
    - by default, read responses are normalized for known live API quirks
    - Shell quoting: params like `contact[id]` should be quoted: `--query 'contact[id]=123'`
    - Invoice date filters (observed): in our tests, `getInvoices` works with `startDate`/`endDate` as Unix timestamps (seconds). ISO dates like `2026-01-01` may return empty results.
@@ -42,6 +45,7 @@ Use this skill when tasks involve sevdesk API access from this workspace, especi
    - `POST` / `PUT` / `PATCH`: `sevdesk-agent write <operationId> ...`
    - `DELETE`: `sevdesk-agent write <operationId> --execute --confirm-execute yes --allow-write ...`
    - for `createContact` / `createOrder`, local preflight validation runs by default
+   - for `createInvoiceByFactory`, preflight also validates invoice/delivery date consistency (`--auto-fix-delivery-date` available)
    - add `--verify` to run read-only post-write checks (including `createInvoiceByFactory`)
    - for createContact workflows, prefer `--verify-contact` (includes customerNumber mismatch checks; auto-fix enabled by default and can be disabled via `--no-fix-contact`)
 4. Persist agent handoff context:
@@ -63,6 +67,14 @@ Use this skill when tasks involve sevdesk API access from this workspace, especi
    - `preventSendBy=1` wird standardmäßig gesetzt (`--no-safe-pdf` deaktiviert das)
 5. Handoff:
    - `sevdesk-agent context snapshot --include-default`
+
+## Additional invoice helpers
+- Installment from existing invoice:
+  - `sevdesk-agent create-invoice-installment --from-invoice <id> --percent 70 --label "..." [--execute --verify]`
+- Clone invoice for recurring workflows:
+  - `sevdesk-agent invoice clone --from <id> --period monthly [--override-position-price 0=199.00] [--execute --verify]`
+- Self-check and command sync:
+  - `sevdesk-agent doctor --json`
 
 ## Guardrails
 - Default behavior is workflow-friendly: `POST`/`PUT`/`PATCH` run directly; `DELETE` is blocked unless guard flags are set.

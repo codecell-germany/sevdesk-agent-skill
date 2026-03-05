@@ -38,12 +38,22 @@ import {
   runWriteVerification,
   verifyAndMaybeFixCreateContact,
 } from "./lib/verify";
+import { deriveRemediationHints } from "./lib/remediation";
 import {
   renderInvoiceEditWorkflowText,
   renderInvoiceFinalizeWorkflowText,
   renderReadOperationsMarkdown,
   renderReadUsageText,
 } from "./lib/docs";
+import {
+  buildClonedInvoicePayload,
+  buildInstallmentInvoicePayload,
+  extractObjectArray,
+  extractPrimaryObject,
+  parsePositionPriceOverrides,
+  shiftDateByPeriod,
+  todayISO,
+} from "./lib/invoice-workflows";
 import type { SevdeskResponse } from "./lib/types";
 
 function fail(message: string): never {
@@ -96,6 +106,192 @@ async function printResponse(
   }
 
   process.stdout.write(`${toPrettyJson(payload)}\n`);
+}
+
+function scoreField(candidate: string, term: string): number {
+  if (!candidate) {
+    return 0;
+  }
+  if (candidate === term) {
+    return 1000;
+  }
+  if (candidate.startsWith(term)) {
+    return 700;
+  }
+  if (candidate.includes(term)) {
+    return 300;
+  }
+  return 0;
+}
+
+async function runFindContactByTerm(options: {
+  term: string;
+  limit: number;
+  output: "pretty" | "json";
+  xVersion?: string;
+}): Promise<void> {
+  const config = loadConfig({ xVersion: options.xVersion });
+  const client = new SevdeskClient(config);
+  const response = await client.request({
+    method: "GET",
+    path: "/Contact",
+    query: { depth: "1" },
+  });
+
+  const contacts = extractContactsFromListResponse(response.data);
+  const matches = findContacts(contacts, options.term, options.limit);
+
+  const payload = {
+    ok: response.ok,
+    status: response.status,
+    term: options.term,
+    matchCount: matches.length,
+    matches: matches.map((match) => ({
+      score: match.score,
+      id: match.id,
+      displayName: match.displayName,
+      customerNumber: match.customerNumber,
+    })),
+  };
+
+  if (options.output === "json") {
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
+    return;
+  }
+
+  if (matches.length === 0) {
+    process.stdout.write(`No contacts matched "${options.term}".\n`);
+    return;
+  }
+
+  const lines = matches.map(
+    (match) =>
+      `${match.score}\t${match.id}\t${match.displayName}\t${match.customerNumber || "-"}`
+  );
+  process.stdout.write(
+    `${`score\tid\tdisplayName\tcustomerNumber`}\n${lines.join("\n")}\n`
+  );
+}
+
+function buildAddressPreview(address: Record<string, unknown> | null): string {
+  if (!address) {
+    return "";
+  }
+
+  const parts = [
+    String(address.name ?? "").trim(),
+    String(address.street ?? "").trim(),
+    [
+      String(address.zip ?? "").trim(),
+      String(address.city ?? "").trim(),
+    ]
+      .filter(Boolean)
+      .join(" "),
+    String(address.country ?? "").trim(),
+  ].filter(Boolean);
+
+  return parts.join(", ");
+}
+
+async function executeCreateInvoiceFromPayload(options: {
+  client: SevdeskClient;
+  payload: unknown;
+  verify: boolean;
+  autoFixDeliveryDate: boolean;
+  output: "pretty" | "json" | "raw";
+}): Promise<void> {
+  let payload = options.payload;
+  const preflight = validateWritePreflight("createInvoiceByFactory", payload, {
+    autoFixDeliveryDate: options.autoFixDeliveryDate,
+  });
+  if (preflight.errors.length > 0) {
+    fail(
+      [
+        "Preflight validation failed for createInvoiceByFactory:",
+        ...preflight.errors.map((error) => `- ${error}`),
+      ].join("\n")
+    );
+  }
+  if (preflight.warnings.length > 0) {
+    process.stderr.write(
+      `${preflight.warnings
+        .map((warning) => `[sevdesk-agent] preflight warning: ${warning}`)
+        .join("\n")}\n`
+    );
+  }
+  if (preflight.normalizedBody !== undefined) {
+    payload = preflight.normalizedBody;
+  }
+
+  const response = await options.client.request({
+    method: "POST",
+    path: "/Invoice/Factory/saveInvoice",
+    body: payload,
+  });
+
+  const extras: Record<string, unknown> = {};
+  if (!response.ok) {
+    const hints = deriveRemediationHints({
+      operationId: "createInvoiceByFactory",
+      status: response.status,
+      data: response.data,
+    });
+    if (hints.length > 0) {
+      extras.remediationHints = hints;
+    }
+  }
+
+  if (options.verify) {
+    try {
+      const verification = await runWriteVerification({
+        operationId: "createInvoiceByFactory",
+        client: options.client,
+        body: payload,
+        writeResponse: response,
+      });
+      extras.verification =
+        verification ??
+        ({
+          skipped: true,
+          reason: "No built-in verification for createInvoiceByFactory",
+        } as Record<string, unknown>);
+    } catch (error) {
+      extras.verification = {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  await printResponse(response, options.output, undefined, extras);
+}
+
+async function readInvoiceTemplate(options: {
+  client: SevdeskClient;
+  invoiceId: string;
+}): Promise<{
+  invoice: Record<string, unknown>;
+  positions: Record<string, unknown>[];
+}> {
+  const invoiceResponse = await options.client.request({
+    method: "GET",
+    path: `/Invoice/${options.invoiceId}`,
+  });
+  const sourceInvoice = extractPrimaryObject(invoiceResponse.data);
+  if (!sourceInvoice) {
+    fail(`Invoice ${options.invoiceId} not found or has unexpected response shape.`);
+  }
+
+  const positionsResponse = await options.client.request({
+    method: "GET",
+    path: `/Invoice/${options.invoiceId}/getPositions`,
+  });
+  const sourcePositions = extractObjectArray(positionsResponse.data);
+  if (sourcePositions.length === 0) {
+    fail(`Invoice ${options.invoiceId} has no positions to clone/installment from.`);
+  }
+
+  return { invoice: sourceInvoice, positions: sourcePositions };
 }
 
 const program = new Command();
@@ -197,6 +393,118 @@ program
     process.stdout.write(`${toPrettyJson({ ...operation, runtimeQuirk: quirk })}\n`);
   });
 
+async function runDoctor(opts: { json?: boolean; live?: boolean }): Promise<void> {
+  const checks: Array<{ check: string; ok: boolean; detail: string }> = [];
+
+  const catalogCount = getCatalog().length;
+  checks.push({
+    check: "catalog.count",
+    ok: catalogCount > 0,
+    detail: `operations=${catalogCount}`,
+  });
+
+  const criticalOps = [
+    "getInvoices",
+    "createInvoiceByFactory",
+    "createOrder",
+    "createContact",
+  ];
+  for (const op of criticalOps) {
+    try {
+      getOperation(op);
+      checks.push({ check: `catalog.${op}`, ok: true, detail: "present" });
+    } catch {
+      checks.push({ check: `catalog.${op}`, ok: false, detail: "missing" });
+    }
+  }
+
+  const quirkEntries = listOperationQuirkEntries();
+  const sorted = [...quirkEntries.map((entry) => entry.operationId)].sort((a, b) =>
+    a.localeCompare(b)
+  );
+  checks.push({
+    check: "quirks.sorted-array",
+    ok:
+      quirkEntries.length === sorted.length &&
+      quirkEntries.every((entry, index) => entry.operationId === sorted[index]),
+    detail: `entries=${quirkEntries.length}`,
+  });
+
+  const tokenPresent = Boolean(process.env.SEVDESK_API_TOKEN);
+  checks.push({
+    check: "env.SEVDESK_API_TOKEN",
+    ok: tokenPresent,
+    detail: tokenPresent ? "present" : "missing",
+  });
+
+  if (opts.live) {
+    if (!tokenPresent) {
+      checks.push({
+        check: "live.bookkeepingSystemVersion",
+        ok: false,
+        detail: "skipped (missing token)",
+      });
+    } else {
+      try {
+        const config = loadConfig();
+        const client = new SevdeskClient(config);
+        const response = await client.request({
+          method: "GET",
+          path: "/Tools/bookkeepingSystemVersion",
+        });
+        checks.push({
+          check: "live.bookkeepingSystemVersion",
+          ok: response.ok,
+          detail: `status=${response.status}`,
+        });
+      } catch (error) {
+        checks.push({
+          check: "live.bookkeepingSystemVersion",
+          ok: false,
+          detail: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  }
+
+  const payload = {
+    ok: checks.every((entry) => entry.ok),
+    checks,
+    recommendations: [
+      "Run `sevdesk-agent docs read-ops --output knowledge/READ_OPERATIONS.md` after behavior changes.",
+      "Run `sevdesk-agent docs invoice-edit` and `sevdesk-agent docs invoice-finalize` for invoice workflow guidance.",
+    ],
+  };
+
+  if (opts.json) {
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
+  } else {
+    process.stdout.write(`${toPrettyJson(payload)}\n`);
+  }
+
+  if (!payload.ok) {
+    process.exitCode = 1;
+  }
+}
+
+program
+  .command("doctor")
+  .description("Run local self-checks for catalog, quirks, env and optional live probe")
+  .option("--json", "Output as JSON", false)
+  .option("--live", "Include a live bookkeepingSystemVersion probe", false)
+  .action(async (opts) => {
+    await runDoctor({ json: Boolean(opts.json), live: Boolean(opts.live) });
+  });
+
+program
+  .command("self-check")
+  .description("Alias for doctor")
+  .option("--json", "Output as JSON", false)
+  .option("--live", "Include a live bookkeepingSystemVersion probe", false)
+  .action(async (opts) => {
+    await runDoctor({ json: Boolean(opts.json), live: Boolean(opts.live) });
+  });
+
 program
   .command("read <operationId>")
   .description("Execute a read-only (GET) operation by operationId")
@@ -230,6 +538,7 @@ program
       "",
       "Examples:",
       "  sevdesk-agent read bookkeepingSystemVersion --output json",
+      "  sevdesk-agent read find-contact --query term='muster gmbh' --output json",
       "  sevdesk-agent read getInvoices --query startDate=1767225600 --query endDate=1769903999 --output json",
       "  sevdesk-agent read getInvoices --query 'contact[id]=123' --output json",
       "",
@@ -238,14 +547,43 @@ program
     ].join("\n")
   )
   .action(async (operationId: string, opts) => {
+    const pathParams = parseKeyValuePairs(opts.path ?? []);
+    const queryParamsInput = parseKeyValuePairs(opts.query ?? []);
+    const headerParams = parseKeyValuePairs(opts.header ?? []);
+
+    if (operationId === "find-contact" || operationId === "findContact") {
+      const term =
+        queryParamsInput.term ??
+        queryParamsInput.q ??
+        queryParamsInput.search ??
+        "";
+      if (!term.trim()) {
+        fail(
+          "read find-contact requires a term. Example: sevdesk-agent read find-contact --query term='muster gmbh' --output json"
+        );
+      }
+
+      const limitRaw = queryParamsInput.limit ?? "20";
+      const limit = Number.parseInt(limitRaw, 10);
+      if (!Number.isFinite(limit) || limit < 1) {
+        fail("read find-contact: `limit` must be an integer >= 1.");
+      }
+
+      const outputMode: "pretty" | "json" =
+        opts.output === "json" ? "json" : "pretty";
+      await runFindContactByTerm({
+        term,
+        limit,
+        output: outputMode,
+        xVersion: opts.xVersion,
+      });
+      return;
+    }
+
     const operation = getOperationOrFail(operationId);
     if (operation.method !== "GET") {
       fail(`Operation ${operationId} is ${operation.method}, use write command instead.`);
     }
-
-    const pathParams = parseKeyValuePairs(opts.path ?? []);
-    const queryParamsInput = parseKeyValuePairs(opts.query ?? []);
-    const headerParams = parseKeyValuePairs(opts.header ?? []);
 
     if (opts.decodePdf && !shouldAutoProtectPdf(operationId)) {
       fail("--decode-pdf is currently supported only for orderGetPdf and invoiceGetPdf.");
@@ -358,27 +696,110 @@ program
     if (opts.output !== "pretty" && opts.output !== "json") {
       fail("--output must be either pretty or json.");
     }
+    await runFindContactByTerm({
+      term,
+      limit,
+      output: opts.output,
+      xVersion: opts.xVersion,
+    });
+  });
+
+program
+  .command("resolve-billing-contact <term>")
+  .description(
+    "Resolve the most likely billing contact (company/person) and show address preview"
+  )
+  .option("--limit <n>", "Maximum matches to evaluate", "10")
+  .option("--output <mode>", "pretty|json", "pretty")
+  .option("--x-version <version>", "Optional sevdesk X-Version header")
+  .action(async (term: string, opts) => {
+    const limit = Number.parseInt(String(opts.limit), 10);
+    if (!Number.isFinite(limit) || limit < 1) {
+      fail("--limit must be an integer >= 1.");
+    }
+    if (opts.output !== "pretty" && opts.output !== "json") {
+      fail("--output must be either pretty or json.");
+    }
 
     const config = loadConfig({ xVersion: opts.xVersion });
     const client = new SevdeskClient(config);
-    const response = await client.request({
+    const contactsResponse = await client.request({
       method: "GET",
       path: "/Contact",
+      query: { depth: "1" },
     });
-
-    const contacts = extractContactsFromListResponse(response.data);
+    const contacts = extractContactsFromListResponse(contactsResponse.data);
     const matches = findContacts(contacts, term, limit);
+    if (matches.length === 0) {
+      if (opts.output === "json") {
+        process.stdout.write(
+          `${JSON.stringify({ ok: true, term, recommendation: null, matches: [] })}\n`
+        );
+      } else {
+        process.stdout.write(`No contacts matched "${term}".\n`);
+      }
+      return;
+    }
+
+    const top = matches[0];
+    const topContact = top.contact as Record<string, unknown>;
+    const parent = (topContact.parent ?? null) as Record<string, unknown> | null;
+    const parentId = parent ? String(parent.id ?? "").trim() : "";
+    const hasPersonFields =
+      String(topContact.surename ?? "").trim() !== "" ||
+      String(topContact.familyname ?? "").trim() !== "";
+
+    const recommendedContactId = top.id;
+    const recommendedReason = hasPersonFields
+      ? "Top match is a person; using person contact as billing recipient."
+      : "Top match is a company; using company contact as billing recipient.";
+
+    const addressResponse = await client.request({
+      method: "GET",
+      path: "/ContactAddress",
+      query: {
+        "contact[id]": recommendedContactId,
+        "contact[objectName]": "Contact",
+      },
+    });
+    let addressPreview = "";
+    const ownAddresses = extractObjectArray(addressResponse.data);
+    if (ownAddresses.length > 0) {
+      addressPreview = buildAddressPreview(ownAddresses[0]);
+    }
+
+    if (!addressPreview && parentId) {
+      const parentAddressResponse = await client.request({
+        method: "GET",
+        path: "/ContactAddress",
+        query: {
+          "contact[id]": parentId,
+          "contact[objectName]": "Contact",
+        },
+      });
+      const parentAddresses = extractObjectArray(parentAddressResponse.data);
+      if (parentAddresses.length > 0) {
+        addressPreview = buildAddressPreview(parentAddresses[0]);
+      }
+    }
 
     const payload = {
-      ok: response.ok,
-      status: response.status,
+      ok: true,
       term,
-      matchCount: matches.length,
-      matches: matches.map((match) => ({
+      recommendation: {
+        contact: {
+          id: recommendedContactId,
+          objectName: "Contact",
+        },
+        reason: recommendedReason,
+        parentId: parentId || null,
+        addressPreview: addressPreview || null,
+      },
+      candidates: matches.map((match) => ({
         score: match.score,
         id: match.id,
         displayName: match.displayName,
-        customerNumber: match.customerNumber,
+        customerNumber: match.customerNumber || null,
       })),
     };
 
@@ -387,18 +808,293 @@ program
       return;
     }
 
-    if (matches.length === 0) {
-      process.stdout.write(`No contacts matched "${term}".\n`);
+    process.stdout.write(`Recommended contact.id: ${recommendedContactId}\n`);
+    process.stdout.write(`Reason: ${recommendedReason}\n`);
+    if (addressPreview) {
+      process.stdout.write(`Address preview: ${addressPreview}\n`);
+    }
+    process.stdout.write(`Candidates:\n`);
+    for (const candidate of payload.candidates) {
+      process.stdout.write(
+        `- ${candidate.score}\t${candidate.id}\t${candidate.displayName}\t${candidate.customerNumber ?? "-"}\n`
+      );
+    }
+  });
+
+program
+  .command("find-invoice <term>")
+  .alias("search-invoices")
+  .description(
+    "Search invoices across header/address/notes and (optionally) position name/text"
+  )
+  .option("--limit <n>", "Maximum matches returned", "20")
+  .option("--max-invoices <n>", "Maximum invoices scanned", "150")
+  .option("--deep-scan", "Also scan invoice positions", true)
+  .option("--no-deep-scan", "Skip scanning invoice positions")
+  .option("--x-version <version>", "Optional sevdesk X-Version header")
+  .option("--output <mode>", "pretty|json", "pretty")
+  .action(async (term: string, opts) => {
+    const limit = Number.parseInt(String(opts.limit), 10);
+    const maxInvoices = Number.parseInt(String(opts.maxInvoices), 10);
+    if (!Number.isFinite(limit) || limit < 1) {
+      fail("--limit must be an integer >= 1.");
+    }
+    if (!Number.isFinite(maxInvoices) || maxInvoices < 1) {
+      fail("--max-invoices must be an integer >= 1.");
+    }
+    if (opts.output !== "pretty" && opts.output !== "json") {
+      fail("--output must be either pretty or json.");
+    }
+
+    const searchTerm = term.trim().toLowerCase();
+    if (!searchTerm) {
+      fail("Search term must not be empty.");
+    }
+
+    const config = loadConfig({ xVersion: opts.xVersion });
+    const client = new SevdeskClient(config);
+
+    const invoices: Record<string, unknown>[] = [];
+    let offset = 0;
+    const pageSize = Math.min(100, maxInvoices);
+    while (invoices.length < maxInvoices) {
+      const response = await client.request({
+        method: "GET",
+        path: "/Invoice",
+        query: {
+          limit: String(Math.min(pageSize, maxInvoices - invoices.length)),
+          offset: String(offset),
+        },
+      });
+      const chunk = extractObjectArray(response.data);
+      if (chunk.length === 0) {
+        break;
+      }
+      invoices.push(...chunk);
+      offset += chunk.length;
+      if (chunk.length < pageSize) {
+        break;
+      }
+    }
+
+    const matches: Array<Record<string, unknown>> = [];
+    for (const invoice of invoices) {
+      const invoiceId = String(invoice.id ?? "").trim();
+      if (!invoiceId) {
+        continue;
+      }
+
+      const fields = {
+        invoiceNumber: String(invoice.invoiceNumber ?? "").toLowerCase(),
+        header: String(invoice.header ?? "").toLowerCase(),
+        address: String(invoice.address ?? "").toLowerCase(),
+        customerInternalNote: String(invoice.customerInternalNote ?? "").toLowerCase(),
+      };
+
+      const matchedFields = Object.entries(fields)
+        .filter(([, value]) => value.includes(searchTerm))
+        .map(([key]) => key);
+      let score = Math.max(
+        ...Object.values(fields).map((value) => scoreField(value, searchTerm)),
+        0
+      );
+
+      const matchedPositions: string[] = [];
+      if (opts.deepScan) {
+        const posResponse = await client.request({
+          method: "GET",
+          path: `/Invoice/${invoiceId}/getPositions`,
+        });
+        const positions = extractObjectArray(posResponse.data);
+        for (const pos of positions) {
+          const name = String(pos.name ?? "").toLowerCase();
+          const text = String(pos.text ?? "").toLowerCase();
+          const positionScore = Math.max(
+            scoreField(name, searchTerm),
+            scoreField(text, searchTerm)
+          );
+          if (positionScore > 0) {
+            score = Math.max(score, positionScore + 50);
+            matchedPositions.push(
+              `${String(pos.name ?? "").trim()}${String(pos.text ?? "").trim() ? ` | ${String(pos.text ?? "").trim()}` : ""}`
+            );
+          }
+        }
+      }
+
+      if (score === 0) {
+        continue;
+      }
+
+      matches.push({
+        score,
+        invoiceId,
+        invoiceNumber: invoice.invoiceNumber ?? null,
+        header: invoice.header ?? null,
+        status: invoice.status ?? null,
+        matchedFields,
+        matchedPositions,
+      });
+    }
+
+    matches.sort((a, b) => Number(b.score) - Number(a.score));
+    const sliced = matches.slice(0, limit);
+    const payload = {
+      ok: true,
+      term,
+      scannedInvoices: invoices.length,
+      matchCount: sliced.length,
+      matches: sliced,
+    };
+
+    if (opts.output === "json") {
+      process.stdout.write(`${JSON.stringify(payload)}\n`);
       return;
     }
 
-    const lines = matches.map(
-      (match) =>
-        `${match.score}\t${match.id}\t${match.displayName}\t${match.customerNumber || "-"}`
-    );
+    if (sliced.length === 0) {
+      process.stdout.write(`No invoice matched "${term}" (scanned=${invoices.length}).\n`);
+      return;
+    }
+
     process.stdout.write(
-      `${`score\tid\tdisplayName\tcustomerNumber`}\n${lines.join("\n")}\n`
+      `score\tinvoiceId\tinvoiceNumber\theader\tstatus\tmatchedFields\tmatchedPositions\n`
     );
+    for (const row of sliced) {
+      process.stdout.write(
+        `${row.score}\t${row.invoiceId}\t${row.invoiceNumber ?? "-"}\t${row.header ?? "-"}\t${row.status ?? "-"}\t${(row.matchedFields as string[]).join(",") || "-"}\t${(row.matchedPositions as string[]).length}\n`
+      );
+    }
+  });
+
+program
+  .command("create-invoice-installment")
+  .alias("createInvoiceInstallment")
+  .description("Create an installment invoice from an existing invoice template")
+  .requiredOption("--from-invoice <id>", "Source invoice id")
+  .requiredOption("--percent <n>", "Installment percent, e.g. 70")
+  .option("--label <text>", "Label used in header/internal note", "Abschlagsrechnung")
+  .option("--invoice-date <date>", "Invoice date (default: today)")
+  .option("--delivery-date <date>", "Delivery date (default: invoice-date)")
+  .option("--invoice-type <type>", "Invoice type, default AR", "AR")
+  .option(
+    "--auto-fix-delivery-date",
+    "Apply delivery date auto-fix in preflight (invoiceDate +1d)",
+    false
+  )
+  .option("--execute", "Actually create invoice (default prints payload only)", false)
+  .option("--verify", "Run post-write verification", false)
+  .option("--x-version <version>", "Optional sevdesk X-Version header")
+  .option("--output <mode>", "pretty|json|raw", "pretty")
+  .action(async (opts) => {
+    const percent = Number(opts.percent);
+    if (!Number.isFinite(percent) || percent <= 0) {
+      fail("--percent must be a number > 0.");
+    }
+    if (opts.output !== "pretty" && opts.output !== "json" && opts.output !== "raw") {
+      fail("--output must be pretty|json|raw.");
+    }
+
+    const config = loadConfig({ xVersion: opts.xVersion });
+    const client = new SevdeskClient(config);
+    const source = await readInvoiceTemplate({
+      client,
+      invoiceId: String(opts.fromInvoice),
+    });
+
+    const invoiceDate = String(opts.invoiceDate ?? todayISO());
+    const deliveryDate = String(opts.deliveryDate ?? invoiceDate);
+    const payload = buildInstallmentInvoicePayload({
+      sourceInvoice: source.invoice,
+      sourcePositions: source.positions,
+      percent,
+      label: String(opts.label),
+      invoiceDate,
+      deliveryDate,
+      invoiceType: String(opts.invoiceType),
+    });
+
+    if (!opts.execute) {
+      process.stdout.write(`${toPrettyJson({ dryRun: true, payload })}\n`);
+      return;
+    }
+
+    await executeCreateInvoiceFromPayload({
+      client,
+      payload,
+      verify: Boolean(opts.verify),
+      autoFixDeliveryDate: Boolean(opts.autoFixDeliveryDate),
+      output: opts.output,
+    });
+  });
+
+const invoiceHelpers = program
+  .command("invoice")
+  .description("Invoice workflow helpers");
+
+invoiceHelpers
+  .command("clone")
+  .description("Clone invoice into a new createInvoiceByFactory payload/write")
+  .requiredOption("--from <id>", "Source invoice id")
+  .option("--date <date>", "Target invoice date")
+  .option("--period <period>", "Shift source invoice date (monthly|yearly|weekly|daily)")
+  .option("--delivery-date <date>", "Target delivery date (default: invoice date)")
+  .option("--label <text>", "Label used in header/internal note", "Clone")
+  .option(
+    "--override-position-price <pair...>",
+    "Selective price overrides, format '<index>=<price>'"
+  )
+  .option(
+    "--auto-fix-delivery-date",
+    "Apply delivery date auto-fix in preflight (invoiceDate +1d)",
+    false
+  )
+  .option("--execute", "Actually create cloned invoice (default prints payload only)", false)
+  .option("--verify", "Run post-write verification", false)
+  .option("--x-version <version>", "Optional sevdesk X-Version header")
+  .option("--output <mode>", "pretty|json|raw", "pretty")
+  .action(async (opts) => {
+    if (opts.output !== "pretty" && opts.output !== "json" && opts.output !== "raw") {
+      fail("--output must be pretty|json|raw.");
+    }
+
+    const config = loadConfig({ xVersion: opts.xVersion });
+    const client = new SevdeskClient(config);
+    const source = await readInvoiceTemplate({
+      client,
+      invoiceId: String(opts.from),
+    });
+
+    const sourceDate = String(source.invoice.invoiceDate ?? todayISO());
+    const invoiceDate = opts.date
+      ? String(opts.date)
+      : opts.period
+        ? shiftDateByPeriod(sourceDate, String(opts.period))
+        : todayISO();
+    const deliveryDate = String(opts.deliveryDate ?? invoiceDate);
+    const priceOverrides = parsePositionPriceOverrides(opts.overridePositionPrice ?? []);
+
+    const payload = buildClonedInvoicePayload({
+      sourceInvoice: source.invoice,
+      sourcePositions: source.positions,
+      invoiceDate,
+      deliveryDate,
+      label: String(opts.label),
+      priceOverrides,
+    });
+
+    if (!opts.execute) {
+      process.stdout.write(`${toPrettyJson({ dryRun: true, payload })}\n`);
+      return;
+    }
+
+    await executeCreateInvoiceFromPayload({
+      client,
+      payload,
+      verify: Boolean(opts.verify),
+      autoFixDeliveryDate: Boolean(opts.autoFixDeliveryDate),
+      output: opts.output,
+    });
   });
 
 const docs = program.command("docs").description("Documentation helpers");
@@ -478,6 +1174,11 @@ program
     "Validate payload for supported write operations before API call",
     true
   )
+  .option(
+    "--auto-fix-delivery-date",
+    "With preflight: auto-fix createInvoiceByFactory deliveryDate to invoiceDate +1d when needed",
+    false
+  )
   .option("--no-preflight", "Disable local preflight validation")
   .option(
     "--verify",
@@ -526,7 +1227,9 @@ program
     }
 
     if (opts.preflight) {
-      const preflight = validateWritePreflight(operationId, body);
+      const preflight = validateWritePreflight(operationId, body, {
+        autoFixDeliveryDate: Boolean(opts.autoFixDeliveryDate),
+      });
       if (preflight.errors.length > 0) {
         fail(
           [
@@ -541,6 +1244,14 @@ program
             .map((warning: string) => `[sevdesk-agent] preflight warning: ${warning}`)
             .join("\n")}\n`
         );
+      }
+      if (preflight.autoFixes && preflight.autoFixes.length > 0) {
+        process.stderr.write(
+          `[sevdesk-agent] preflight auto-fixes: ${preflight.autoFixes.join(", ")}\n`
+        );
+      }
+      if (preflight.normalizedBody !== undefined) {
+        body = preflight.normalizedBody;
       }
     }
 
@@ -561,6 +1272,16 @@ program
     });
 
     const extras: Record<string, unknown> = {};
+    if (!response.ok) {
+      const hints = deriveRemediationHints({
+        operationId,
+        status: response.status,
+        data: response.data,
+      });
+      if (hints.length > 0) {
+        extras.remediationHints = hints;
+      }
+    }
     if (opts.verifyContact) {
       try {
         const contactVerification = await verifyAndMaybeFixCreateContact({

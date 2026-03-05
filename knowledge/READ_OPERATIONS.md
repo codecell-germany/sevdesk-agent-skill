@@ -302,7 +302,7 @@ _(none)_
 
 Notes:
 
-- `*GetPdf` responses are typically JSON wrapped in `data.objects` (often containing `filename`, `mimetype`, and base64 `content`). The CLI does not automatically write files to disk.
+- `*GetPdf` responses are typically JSON wrapped in `data.objects` (often containing `filename`, `mimetype`, and base64 `content`). Use `--decode-pdf <path>` to write a file directly.
 - If an endpoint returns a non-JSON binary content-type (pdf/xml/zip/csv), the CLI prints metadata (`binary`, `bytes`, `contentType`) instead of raw bytes.
 
 Example:
@@ -1843,7 +1843,7 @@ Runtime quirk:
 
 Notes:
 
-- `*GetPdf` responses are typically JSON wrapped in `data.objects` (often containing `filename`, `mimetype`, and base64 `content`). The CLI does not automatically write files to disk.
+- `*GetPdf` responses are typically JSON wrapped in `data.objects` (often containing `filename`, `mimetype`, and base64 `content`). Use `--decode-pdf <path>` to write a file directly.
 - If an endpoint returns a non-JSON binary content-type (pdf/xml/zip/csv), the CLI prints metadata (`binary`, `bytes`, `contentType`) instead of raw bytes.
 
 Example:
@@ -1938,7 +1938,7 @@ Runtime quirk:
 
 Notes:
 
-- `*GetPdf` responses are typically JSON wrapped in `data.objects` (often containing `filename`, `mimetype`, and base64 `content`). The CLI does not automatically write files to disk.
+- `*GetPdf` responses are typically JSON wrapped in `data.objects` (often containing `filename`, `mimetype`, and base64 `content`). Use `--decode-pdf <path>` to write a file directly.
 - If an endpoint returns a non-JSON binary content-type (pdf/xml/zip/csv), the CLI prints metadata (`binary`, `bytes`, `contentType`) instead of raw bytes.
 
 Example:
