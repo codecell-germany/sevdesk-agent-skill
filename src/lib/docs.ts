@@ -106,7 +106,7 @@ function renderSpecialNotes(entry: OperationCatalogEntry): string[] {
 
   if (entry.path.toLowerCase().includes("getpdf")) {
     notes.push(
-      "- `*GetPdf` responses are typically JSON wrapped in `data.objects` (often containing `filename`, `mimetype`, and base64 `content`). The CLI does not automatically write files to disk."
+      "- `*GetPdf` responses are typically JSON wrapped in `data.objects` (often containing `filename`, `mimetype`, and base64 `content`). Use `--decode-pdf <path>` to write a file directly."
     );
     notes.push(
       "- If an endpoint returns a non-JSON binary content-type (pdf/xml/zip/csv), the CLI prints metadata (`binary`, `bytes`, `contentType`) instead of raw bytes."
@@ -227,9 +227,11 @@ export function renderReadUsageText(): string {
     "",
     "3. Execute a GET operation:",
     "   sevdesk-agent read bookkeepingSystemVersion --output json",
+    "   sevdesk-agent read find-contact --query term='muster gmbh' --output json",
     "",
     "Notes:",
     "- Provide repeated params via --path/--query flags.",
+    "- `find-contact` is also available via read alias: `read find-contact --query term=...`.",
     "- Quote bracket params in shells: --query 'contact[id]=123'.",
     "- Use `sevdesk-agent docs read-ops` to generate a full markdown reference under knowledge/.",
     "",

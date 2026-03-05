@@ -220,3 +220,54 @@ Den Ablauf `Kontakt anlegen -> Angebot erstellen -> PDF ausgeben` robust, reprod
 
 5. `create-invoice` High-Level Kommando
 - Geführter Aufruf analog Angebots-Workflow (Empfänger, Positionen, Steuer, Adresse, Verify, PDF).
+
+## Umsetzung aus User-Feedback (2026-03-05)
+
+Quelle: direktes Praxis-Feedback zu robusteren Rechnungs-/Kontakt-Workflows.
+
+### Ergebnisübersicht
+
+- [x] `find-contact` konsistent gemacht
+  - Top-Level bleibt erhalten: `sevdesk-agent find-contact <term>`
+  - Read-Alias ergänzt: `sevdesk-agent read find-contact --query term=<term>`
+  - Ziel: weniger Fehlaufrufe in agentischen Flows.
+
+- [x] Rechnungssuche über Positionstexte ergänzt
+  - Neues Kommando: `sevdesk-agent find-invoice <term> --deep-scan`
+  - Alias: `sevdesk-agent search-invoices <term>`
+  - Felder: `invoiceNumber`, `header`, `address`, `customerInternalNote`, optional Positionen (`name`, `text`).
+
+- [x] Native Abschlagsrechnung aus Vorlage
+  - Neues Kommando: `sevdesk-agent create-invoice-installment --from-invoice <id> --percent <n> --label "<text>"`
+  - Erstellt Payload aus Quellrechnung + Positionen mit prozentual skalierten Preisen.
+  - Dry-run standardmäßig; API-Write nur mit `--execute`.
+
+- [x] Klare Datumsvalidierung vor Write
+  - Preflight für `createInvoiceByFactory` validiert `invoiceDate`, `deliveryDate`, `deliveryDateUntil`.
+  - Konkrete Fehlhinweise vor API-Call.
+  - Optionaler Auto-Fix: `--auto-fix-delivery-date` (setzt `deliveryDate = invoiceDate + 1 Tag`).
+
+- [x] Kontakt-/Ansprechpartner-Auflösung vereinfacht
+  - Neues Kommando: `sevdesk-agent resolve-billing-contact <term>`
+  - Liefert empfohlene `contact.id` plus Address-Preview.
+
+- [x] Clone-Funktion für wiederkehrende Rechnungen
+  - Neues Kommando: `sevdesk-agent invoice clone --from <id> --period monthly|yearly|weekly|daily`
+  - Selektive Positions-Preis-Overrides via `--override-position-price <index>=<price>`.
+
+- [x] Strukturiertere Fehlerausgaben
+  - Bei bekannten 4xx-Fehlern werden `remediationHints` ergänzt.
+  - Beispiele: Datumsrelation, fehlende Positionen, Tax-Mismatch, fehlender Kontakt, Auth/404.
+
+- [x] Skill-Doku und CLI-Verhalten synchronisiert
+  - `skills/sevdesk-agent-cli/SKILL.md` aktualisiert.
+  - `skills/sevdesk-agent-cli/references/command-cheatsheet.md` aktualisiert.
+  - Self-check ergänzt: `sevdesk-agent doctor` / `sevdesk-agent self-check`.
+  - Agent-Prompt angepasst: `skills/sevdesk-agent-cli/agents/openai.yaml`.
+
+### Offene Punkte aus Feedback (bewusst nicht Teil dieser Runde)
+
+- [ ] High-level `create-offer` Wizard (interaktives Guided Command)
+- [ ] `next-order-number` Helper
+- [ ] `op-show --schema` / `docs write-op <operationId>` mit Required-Feldern aus Schema
+- [ ] Safety-Profile (`--profile safe-read`, `--profile offer-write`)

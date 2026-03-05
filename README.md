@@ -17,6 +17,11 @@ Agent-first CLI + skill package for sevdesk with a read-first workflow, API-comp
 - Direct PDF file decode (`--decode-pdf`) with optional payload slimming (`--suppress-content`, default on when decoding).
 - Runtime quirk handling (`ops-quirks`, normalization in `read`).
 - Handoff snapshots for multi-agent continuation (`context snapshot`).
+- Billing-contact resolver helper (`resolve-billing-contact`).
+- Invoice text search including position-level scan (`find-invoice`, alias `search-invoices`).
+- Installment generation helper from existing invoice (`create-invoice-installment`).
+- Clone helper for recurring invoice workflows (`invoice clone`).
+- Local health/sync command (`doctor`, alias `self-check`).
 
 ## Why This Improves Agent Workflows
 
@@ -34,6 +39,7 @@ Typical agent pain points this tool removes:
 
 ```bash
 sevdesk-agent find-contact "Muster GmbH" --output json
+sevdesk-agent read find-contact --query term="Muster GmbH" --output json
 sevdesk-agent write createContact --body-file payloads/contact.create.json --verify-contact
 ```
 
@@ -95,6 +101,46 @@ sevdesk-agent context snapshot --include-default --max-objects 20 --output .cont
 What got simpler:
 - Next agent receives consistent context without ad-hoc manual exports.
 
+### 7) Installment Invoice From Existing Template
+
+```bash
+sevdesk-agent create-invoice-installment \
+  --from-invoice 12345 \
+  --percent 70 \
+  --label "Abschlag Phase 2" \
+  --execute \
+  --verify
+```
+
+What got simpler:
+- No manual percentage math over each position.
+- Reference/header text gets generated automatically.
+- Same command can run dry-run without `--execute`.
+
+### 8) Recurring Invoice Clone With Selective Overrides
+
+```bash
+sevdesk-agent invoice clone \
+  --from 12345 \
+  --period monthly \
+  --override-position-price 0=199.00 \
+  --execute \
+  --verify
+```
+
+What got simpler:
+- Monthly/yearly cloning from a known-good invoice.
+- Selective price overrides without rebuilding full payload JSON.
+
+### 9) Invoice Search Including Position Text
+
+```bash
+sevdesk-agent find-invoice "acf" --deep-scan --output json
+```
+
+What got simpler:
+- Faster answer to “was this already billed?” using header/address + position text/name.
+
 ## Quick Start
 
 Requirements:
@@ -122,9 +168,14 @@ sevdesk-agent read bookkeepingSystemVersion --output json
 - `sevdesk-agent read <operationId> ...`
 - `sevdesk-agent write <operationId> ...`
 - `sevdesk-agent find-contact <term> ...`
+- `sevdesk-agent resolve-billing-contact <term> ...`
+- `sevdesk-agent find-invoice <term> ...`
+- `sevdesk-agent create-invoice-installment ...`
+- `sevdesk-agent invoice clone ...`
 - `sevdesk-agent docs read-ops --output knowledge/READ_OPERATIONS.md`
 - `sevdesk-agent docs invoice-edit`
 - `sevdesk-agent docs invoice-finalize`
+- `sevdesk-agent doctor --json`
 - `sevdesk-agent context snapshot ...`
 
 ## Guard Model

@@ -1,6 +1,12 @@
 interface ValidationResult {
   errors: string[];
   warnings: string[];
+  normalizedBody?: unknown;
+  autoFixes?: string[];
+}
+
+interface PreflightOptions {
+  autoFixDeliveryDate?: boolean;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -21,6 +27,54 @@ function toNumber(value: unknown): number | null {
     }
   }
   return null;
+}
+
+function parseDateLike(value: unknown): Date | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const millis = value > 1_000_000_000_000 ? value : value * 1000;
+    const d = new Date(millis);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  const raw = String(value).trim();
+  if (!raw) {
+    return null;
+  }
+
+  if (/^\d{10,13}$/.test(raw)) {
+    const asNumber = Number(raw);
+    if (Number.isFinite(asNumber)) {
+      const millis = raw.length >= 13 ? asNumber : asNumber * 1000;
+      const d = new Date(millis);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const d = new Date(`${raw}T00:00:00`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  const ddmmyyyy = raw.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (ddmmyyyy) {
+    const [, dd, mm, yyyy] = ddmmyyyy;
+    const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function formatDateISO(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function validateCreateContact(body: unknown): ValidationResult {
@@ -171,9 +225,90 @@ function validateCreateOrder(body: unknown): ValidationResult {
   return { errors, warnings };
 }
 
+function validateCreateInvoiceByFactory(
+  body: unknown,
+  options: PreflightOptions
+): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const autoFixes: string[] = [];
+
+  const payload = asRecord(body);
+  if (!payload) {
+    return {
+      errors: ["createInvoiceByFactory: request body must be an object."],
+      warnings,
+    };
+  }
+
+  const invoice = asRecord(payload.invoice);
+  if (!invoice) {
+    errors.push("createInvoiceByFactory: missing required object `invoice`.");
+    return { errors, warnings };
+  }
+
+  const invoiceDate = parseDateLike(invoice.invoiceDate);
+  const deliveryDate = parseDateLike(invoice.deliveryDate);
+  const deliveryDateUntil = parseDateLike(invoice.deliveryDateUntil);
+
+  if (invoice.invoiceDate !== undefined && !invoiceDate) {
+    errors.push(
+      "createInvoiceByFactory: `invoice.invoiceDate` is invalid. Use YYYY-MM-DD, DD.MM.YYYY or unix timestamp."
+    );
+  }
+  if (invoice.deliveryDate !== undefined && !deliveryDate) {
+    errors.push(
+      "createInvoiceByFactory: `invoice.deliveryDate` is invalid. Use YYYY-MM-DD, DD.MM.YYYY or unix timestamp."
+    );
+  }
+
+  const normalizedInvoice = { ...invoice };
+  if (invoiceDate && deliveryDate && deliveryDate <= invoiceDate) {
+    if (options.autoFixDeliveryDate) {
+      const fixedDate = new Date(invoiceDate.getTime());
+      fixedDate.setDate(fixedDate.getDate() + 1);
+      normalizedInvoice.deliveryDate = formatDateISO(fixedDate);
+      warnings.push(
+        "createInvoiceByFactory: auto-fixed `invoice.deliveryDate` to be > `invoice.invoiceDate`."
+      );
+      autoFixes.push("invoice.deliveryDate");
+    } else {
+      errors.push(
+        "createInvoiceByFactory: `invoice.deliveryDate` should be later than `invoice.invoiceDate`. Use `--auto-fix-delivery-date` or adjust dates."
+      );
+    }
+  }
+
+  if (deliveryDate && deliveryDateUntil && deliveryDateUntil < deliveryDate) {
+    errors.push(
+      "createInvoiceByFactory: `invoice.deliveryDateUntil` must be >= `invoice.deliveryDate`."
+    );
+  }
+
+  const positions = payload.invoicePosSave;
+  if (!Array.isArray(positions) || positions.length === 0) {
+    errors.push("createInvoiceByFactory: `invoicePosSave` must be a non-empty array.");
+  }
+
+  if (autoFixes.length > 0) {
+    return {
+      errors,
+      warnings,
+      normalizedBody: {
+        ...payload,
+        invoice: normalizedInvoice,
+      },
+      autoFixes,
+    };
+  }
+
+  return { errors, warnings };
+}
+
 export function validateWritePreflight(
   operationId: string,
-  body: unknown
+  body: unknown,
+  options: PreflightOptions = {}
 ): ValidationResult {
   if (operationId === "createContact") {
     return validateCreateContact(body);
@@ -181,6 +316,10 @@ export function validateWritePreflight(
 
   if (operationId === "createOrder") {
     return validateCreateOrder(body);
+  }
+
+  if (operationId === "createInvoiceByFactory") {
+    return validateCreateInvoiceByFactory(body, options);
   }
 
   return { errors: [], warnings: [] };

@@ -20,6 +20,9 @@ sevdesk-agent read getInvoices --output pretty
 sevdesk-agent read getContacts --query customerNumber=10001
 sevdesk-agent read contactCustomerNumberAvailabilityCheck --query customerNumber=10001
 sevdesk-agent find-contact nikolas --output json
+sevdesk-agent read find-contact --query term=nikolas --output json
+sevdesk-agent resolve-billing-contact "Muster GmbH" --output json
+sevdesk-agent find-invoice acf --deep-scan --output json
 ```
 
 By default `read` includes:
@@ -51,15 +54,41 @@ sevdesk-agent write createContact --body-file ./payloads/contact.create.json --v
 Preflight validation runs by default for:
 - `createContact`
 - `createOrder`
+- `createInvoiceByFactory` (with invoice/delivery date checks)
 
 Disable preflight (rare):
 ```bash
 sevdesk-agent write createOrder --body-file ./payloads/order.json --no-preflight
 ```
 
+Auto-fix invoice delivery date on create:
+```bash
+sevdesk-agent write createInvoiceByFactory \
+  --body-file ./payloads/invoice.create.json \
+  --auto-fix-delivery-date \
+  --verify
+```
+
 Invoice create verification:
 ```bash
 sevdesk-agent write createInvoiceByFactory --body-file ./payloads/invoice.create.json --verify
+```
+
+High-level invoice helpers:
+```bash
+sevdesk-agent create-invoice-installment \
+  --from-invoice 12345 \
+  --percent 70 \
+  --label "Abschlag Phase 2" \
+  --execute \
+  --verify
+
+sevdesk-agent invoice clone \
+  --from 12345 \
+  --period monthly \
+  --override-position-price 0=199.00 \
+  --execute \
+  --verify
 ```
 
 ## Delete call (guarded)
@@ -79,6 +108,11 @@ sevdesk-agent docs invoice-edit
 Invoice finalize workflow:
 ```bash
 sevdesk-agent docs invoice-finalize
+```
+
+Self-check:
+```bash
+sevdesk-agent doctor --json
 ```
 
 ## Context snapshot for agent continuation
