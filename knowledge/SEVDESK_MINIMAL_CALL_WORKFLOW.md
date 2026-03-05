@@ -1,6 +1,6 @@
 # SevDesk Minimal-Call Workflow (Kontakt -> Ansprechpartner -> Angebot)
 
-Stand: 2026-03-03
+Stand: 2026-03-04
 
 ## Ziel
 So wenig API-Calls wie möglich, aber trotzdem sicher und reproduzierbar.
@@ -34,6 +34,10 @@ Gesamt: typischerweise 14-17 Calls.
 3. Falls Firma vorhanden: `getContactAddresses --query 'contact[id]=<id>'`
 4. Ansprechpartner nur über Parent-Filter prüfen:
    - `getContacts --query limit=1000` lokal filtern auf `parent.id == <firmaId>`
+
+Wichtig:
+- `find-contact` ist ein eigenes Top-Level-Kommando.
+- Nicht als `read` aufrufen (`sevdesk-agent read find-contact ...`), sonst `Unknown operationId`.
 
 ### 3) Kundendaten anlegen (nur wenn fehlend)
 
@@ -92,6 +96,10 @@ Beispielstruktur:
 3. PDF-Response:
 - enthält Base64-Content und kann stdout aufblasen.
 - bei Agentläufen Ausgabe direkt mit `jq` auf Metadaten reduzieren.
+
+4. Kontakt-Suche:
+- `find-contact` priorisieren.
+- Fallback bei Personen ohne Treffer: `getContacts --query depth=1` und lokal nach `surename`/`familyname` filtern.
 
 ## Do / Don't
 - Do: nur kundenbezogene Reads.
