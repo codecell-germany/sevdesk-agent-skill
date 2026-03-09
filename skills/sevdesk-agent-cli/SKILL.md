@@ -33,6 +33,8 @@ Use this skill when tasks involve sevdesk API access from this workspace, especi
 2. Run read calls first:
    - `sevdesk-agent read <operationId> --query key=value`
    - `sevdesk-agent read find-contact --query term="<name>" --output json` (alias for top-level find-contact)
+   - `sevdesk-agent read resolve-billing-contact --query term="<name>" --output json` (alias for helper command)
+   - `sevdesk-agent read find-invoice --query term="<text>" --query deepScan=true --output json` (alias for helper command)
    - local contact search helper: `sevdesk-agent find-contact <term> --output json`
    - billing helper: `sevdesk-agent resolve-billing-contact <term> --output json`
    - invoice text search: `sevdesk-agent find-invoice <term> --deep-scan --output json`

@@ -247,6 +247,23 @@ function validateCreateInvoiceByFactory(
     return { errors, warnings };
   }
 
+  const contact = asRecord(invoice.contact);
+  if (!contact) {
+    errors.push(
+      "createInvoiceByFactory: `invoice.contact` is required and must include `id`."
+    );
+  } else if (!String(contact.id ?? "").trim()) {
+    errors.push("createInvoiceByFactory: `invoice.contact.id` is required.");
+  }
+
+  if (!String(invoice.invoiceType ?? "").trim()) {
+    errors.push("createInvoiceByFactory: `invoice.invoiceType` is required.");
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(invoice, "status")) {
+    errors.push("createInvoiceByFactory: `invoice.status` is required.");
+  }
+
   const invoiceDate = parseDateLike(invoice.invoiceDate);
   const deliveryDate = parseDateLike(invoice.deliveryDate);
   const deliveryDateUntil = parseDateLike(invoice.deliveryDateUntil);
@@ -288,6 +305,34 @@ function validateCreateInvoiceByFactory(
   const positions = payload.invoicePosSave;
   if (!Array.isArray(positions) || positions.length === 0) {
     errors.push("createInvoiceByFactory: `invoicePosSave` must be a non-empty array.");
+  } else {
+    for (let index = 0; index < positions.length; index += 1) {
+      const pos = asRecord(positions[index]);
+      if (!pos) {
+        errors.push(`createInvoiceByFactory: invoicePosSave[${index}] must be an object.`);
+        continue;
+      }
+
+      const quantity = toNumber(pos.quantity);
+      const price = toNumber(pos.price);
+      const taxRate = toNumber(pos.taxRate);
+
+      if (quantity === null || quantity <= 0) {
+        errors.push(
+          `createInvoiceByFactory: invoicePosSave[${index}].quantity must be a number > 0.`
+        );
+      }
+      if (price === null || price < 0) {
+        errors.push(
+          `createInvoiceByFactory: invoicePosSave[${index}].price must be a number >= 0.`
+        );
+      }
+      if (taxRate === null || taxRate < 0) {
+        errors.push(
+          `createInvoiceByFactory: invoicePosSave[${index}].taxRate must be a number >= 0.`
+        );
+      }
+    }
   }
 
   if (autoFixes.length > 0) {

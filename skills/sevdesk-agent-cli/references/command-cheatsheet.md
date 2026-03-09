@@ -22,7 +22,9 @@ sevdesk-agent read contactCustomerNumberAvailabilityCheck --query customerNumber
 sevdesk-agent find-contact nikolas --output json
 sevdesk-agent read find-contact --query term=nikolas --output json
 sevdesk-agent resolve-billing-contact "Muster GmbH" --output json
+sevdesk-agent read resolve-billing-contact --query term="Muster GmbH" --output json
 sevdesk-agent find-invoice acf --deep-scan --output json
+sevdesk-agent read find-invoice --query term=acf --query deepScan=true --output json
 ```
 
 By default `read` includes:

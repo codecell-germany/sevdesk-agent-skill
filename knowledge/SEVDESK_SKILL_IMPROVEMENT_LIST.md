@@ -271,3 +271,18 @@ Quelle: direktes Praxis-Feedback zu robusteren Rechnungs-/Kontakt-Workflows.
 - [ ] `next-order-number` Helper
 - [ ] `op-show --schema` / `docs write-op <operationId>` mit Required-Feldern aus Schema
 - [ ] Safety-Profile (`--profile safe-read`, `--profile offer-write`)
+
+## Nachoptimierung (2026-03-05, Runde 2)
+
+- [x] Read-Helper-Aliases für Workflow-Konsistenz erweitert
+  - `read resolve-billing-contact --query term=...`
+  - `read find-invoice --query term=... --query deepScan=true`
+  - Ziel: gleiche Nutzungskonvention wie bei `read find-contact`, weniger Fehlaufrufe.
+
+- [x] Preflight für `createInvoiceByFactory` weiter gehärtet
+  - prüft jetzt zusätzlich:
+    - `invoice.contact.id`
+    - `invoice.invoiceType`
+    - `invoice.status`
+    - `invoicePosSave[*].quantity/price/taxRate` auf gültige Zahlenbereiche
+  - Ziel: häufige 400/422 bereits vor API-Call abfangen.
