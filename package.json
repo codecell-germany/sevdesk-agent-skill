@@ -1,6 +1,6 @@
 {
   "name": "@codecell-germany/sevdesk-agent-skill",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": false,
   "description": "Agent-focused sevdesk CLI in TypeScript",
   "license": "MIT",
