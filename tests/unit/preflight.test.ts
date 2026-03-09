@@ -80,6 +80,9 @@ describe("validateWritePreflight", () => {
       "createInvoiceByFactory",
       {
         invoice: {
+          contact: { id: "123", objectName: "Contact" },
+          invoiceType: "RE",
+          status: 100,
           invoiceDate: "2026-03-05",
           deliveryDate: "2026-03-05",
         },
@@ -93,5 +96,37 @@ describe("validateWritePreflight", () => {
     const normalized = (result.normalizedBody ?? {}) as Record<string, unknown>;
     const invoice = (normalized.invoice ?? {}) as Record<string, unknown>;
     expect(invoice.deliveryDate).toBe("2026-03-06");
+  });
+
+  it("rejects createInvoiceByFactory without contact and invoice core fields", () => {
+    const result = validateWritePreflight("createInvoiceByFactory", {
+      invoice: {
+        invoiceDate: "2026-03-05",
+        deliveryDate: "2026-03-06",
+      },
+      invoicePosSave: [{ quantity: 1, price: 100, taxRate: 19 }],
+    });
+
+    expect(result.errors.join("\n")).toContain("invoice.contact");
+    expect(result.errors.join("\n")).toContain("invoice.invoiceType");
+    expect(result.errors.join("\n")).toContain("invoice.status");
+  });
+
+  it("rejects createInvoiceByFactory with invalid position values", () => {
+    const result = validateWritePreflight("createInvoiceByFactory", {
+      invoice: {
+        contact: { id: "123", objectName: "Contact" },
+        invoiceType: "RE",
+        status: 100,
+        invoiceDate: "2026-03-05",
+        deliveryDate: "2026-03-06",
+      },
+      invoicePosSave: [{ quantity: 0, price: -1, taxRate: -19 }],
+    });
+
+    const output = result.errors.join("\n");
+    expect(output).toContain("invoicePosSave[0].quantity");
+    expect(output).toContain("invoicePosSave[0].price");
+    expect(output).toContain("invoicePosSave[0].taxRate");
   });
 });

@@ -173,6 +173,265 @@ async function runFindContactByTerm(options: {
   );
 }
 
+async function runResolveBillingContactByTerm(options: {
+  term: string;
+  limit: number;
+  output: "pretty" | "json";
+  xVersion?: string;
+}): Promise<void> {
+  const config = loadConfig({ xVersion: options.xVersion });
+  const client = new SevdeskClient(config);
+  const contactsResponse = await client.request({
+    method: "GET",
+    path: "/Contact",
+    query: { depth: "1" },
+  });
+  const contacts = extractContactsFromListResponse(contactsResponse.data);
+  const matches = findContacts(contacts, options.term, options.limit);
+  if (matches.length === 0) {
+    if (options.output === "json") {
+      process.stdout.write(
+        `${JSON.stringify({
+          ok: true,
+          term: options.term,
+          recommendation: null,
+          matches: [],
+        })}\n`
+      );
+    } else {
+      process.stdout.write(`No contacts matched "${options.term}".\n`);
+    }
+    return;
+  }
+
+  const top = matches[0];
+  const topContact = top.contact as Record<string, unknown>;
+  const parent = (topContact.parent ?? null) as Record<string, unknown> | null;
+  const parentId = parent ? String(parent.id ?? "").trim() : "";
+  const hasPersonFields =
+    String(topContact.surename ?? "").trim() !== "" ||
+    String(topContact.familyname ?? "").trim() !== "";
+
+  const recommendedContactId = top.id;
+  const recommendedReason = hasPersonFields
+    ? "Top match is a person; using person contact as billing recipient."
+    : "Top match is a company; using company contact as billing recipient.";
+
+  const addressResponse = await client.request({
+    method: "GET",
+    path: "/ContactAddress",
+    query: {
+      "contact[id]": recommendedContactId,
+      "contact[objectName]": "Contact",
+    },
+  });
+  let addressPreview = "";
+  const ownAddresses = extractObjectArray(addressResponse.data);
+  if (ownAddresses.length > 0) {
+    addressPreview = buildAddressPreview(ownAddresses[0]);
+  }
+
+  if (!addressPreview && parentId) {
+    const parentAddressResponse = await client.request({
+      method: "GET",
+      path: "/ContactAddress",
+      query: {
+        "contact[id]": parentId,
+        "contact[objectName]": "Contact",
+      },
+    });
+    const parentAddresses = extractObjectArray(parentAddressResponse.data);
+    if (parentAddresses.length > 0) {
+      addressPreview = buildAddressPreview(parentAddresses[0]);
+    }
+  }
+
+  const payload = {
+    ok: true,
+    term: options.term,
+    recommendation: {
+      contact: {
+        id: recommendedContactId,
+        objectName: "Contact",
+      },
+      reason: recommendedReason,
+      parentId: parentId || null,
+      addressPreview: addressPreview || null,
+    },
+    candidates: matches.map((match) => ({
+      score: match.score,
+      id: match.id,
+      displayName: match.displayName,
+      customerNumber: match.customerNumber || null,
+    })),
+  };
+
+  if (options.output === "json") {
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
+    return;
+  }
+
+  process.stdout.write(`Recommended contact.id: ${recommendedContactId}\n`);
+  process.stdout.write(`Reason: ${recommendedReason}\n`);
+  if (addressPreview) {
+    process.stdout.write(`Address preview: ${addressPreview}\n`);
+  }
+  process.stdout.write(`Candidates:\n`);
+  for (const candidate of payload.candidates) {
+    process.stdout.write(
+      `- ${candidate.score}\t${candidate.id}\t${candidate.displayName}\t${candidate.customerNumber ?? "-"}\n`
+    );
+  }
+}
+
+function parseBooleanLike(
+  value: string | undefined,
+  defaultValue: boolean
+): boolean {
+  if (value === undefined) {
+    return defaultValue;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+  throw new Error(`Invalid boolean value: ${value}`);
+}
+
+async function runFindInvoiceByTerm(options: {
+  term: string;
+  limit: number;
+  maxInvoices: number;
+  deepScan: boolean;
+  output: "pretty" | "json";
+  xVersion?: string;
+}): Promise<void> {
+  const searchTerm = options.term.trim().toLowerCase();
+  if (!searchTerm) {
+    fail("Search term must not be empty.");
+  }
+
+  const config = loadConfig({ xVersion: options.xVersion });
+  const client = new SevdeskClient(config);
+
+  const invoices: Record<string, unknown>[] = [];
+  let offset = 0;
+  const pageSize = Math.min(100, options.maxInvoices);
+  while (invoices.length < options.maxInvoices) {
+    const response = await client.request({
+      method: "GET",
+      path: "/Invoice",
+      query: {
+        limit: String(Math.min(pageSize, options.maxInvoices - invoices.length)),
+        offset: String(offset),
+      },
+    });
+    const chunk = extractObjectArray(response.data);
+    if (chunk.length === 0) {
+      break;
+    }
+    invoices.push(...chunk);
+    offset += chunk.length;
+    if (chunk.length < pageSize) {
+      break;
+    }
+  }
+
+  const matches: Array<Record<string, unknown>> = [];
+  for (const invoice of invoices) {
+    const invoiceId = String(invoice.id ?? "").trim();
+    if (!invoiceId) {
+      continue;
+    }
+
+    const fields = {
+      invoiceNumber: String(invoice.invoiceNumber ?? "").toLowerCase(),
+      header: String(invoice.header ?? "").toLowerCase(),
+      address: String(invoice.address ?? "").toLowerCase(),
+      customerInternalNote: String(invoice.customerInternalNote ?? "").toLowerCase(),
+    };
+
+    const matchedFields = Object.entries(fields)
+      .filter(([, value]) => value.includes(searchTerm))
+      .map(([key]) => key);
+    let score = Math.max(
+      ...Object.values(fields).map((value) => scoreField(value, searchTerm)),
+      0
+    );
+
+    const matchedPositions: string[] = [];
+    if (options.deepScan) {
+      const posResponse = await client.request({
+        method: "GET",
+        path: `/Invoice/${invoiceId}/getPositions`,
+      });
+      const positions = extractObjectArray(posResponse.data);
+      for (const pos of positions) {
+        const name = String(pos.name ?? "").toLowerCase();
+        const text = String(pos.text ?? "").toLowerCase();
+        const positionScore = Math.max(
+          scoreField(name, searchTerm),
+          scoreField(text, searchTerm)
+        );
+        if (positionScore > 0) {
+          score = Math.max(score, positionScore + 50);
+          matchedPositions.push(
+            `${String(pos.name ?? "").trim()}${String(pos.text ?? "").trim() ? ` | ${String(pos.text ?? "").trim()}` : ""}`
+          );
+        }
+      }
+    }
+
+    if (score === 0) {
+      continue;
+    }
+
+    matches.push({
+      score,
+      invoiceId,
+      invoiceNumber: invoice.invoiceNumber ?? null,
+      header: invoice.header ?? null,
+      status: invoice.status ?? null,
+      matchedFields,
+      matchedPositions,
+    });
+  }
+
+  matches.sort((a, b) => Number(b.score) - Number(a.score));
+  const sliced = matches.slice(0, options.limit);
+  const payload = {
+    ok: true,
+    term: options.term,
+    scannedInvoices: invoices.length,
+    matchCount: sliced.length,
+    matches: sliced,
+  };
+
+  if (options.output === "json") {
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
+    return;
+  }
+
+  if (sliced.length === 0) {
+    process.stdout.write(
+      `No invoice matched "${options.term}" (scanned=${invoices.length}).\n`
+    );
+    return;
+  }
+
+  process.stdout.write(
+    `score\tinvoiceId\tinvoiceNumber\theader\tstatus\tmatchedFields\tmatchedPositions\n`
+  );
+  for (const row of sliced) {
+    process.stdout.write(
+      `${row.score}\t${row.invoiceId}\t${row.invoiceNumber ?? "-"}\t${row.header ?? "-"}\t${row.status ?? "-"}\t${(row.matchedFields as string[]).join(",") || "-"}\t${(row.matchedPositions as string[]).length}\n`
+    );
+  }
+}
+
 function buildAddressPreview(address: Record<string, unknown> | null): string {
   if (!address) {
     return "";
@@ -539,6 +798,8 @@ program
       "Examples:",
       "  sevdesk-agent read bookkeepingSystemVersion --output json",
       "  sevdesk-agent read find-contact --query term='muster gmbh' --output json",
+      "  sevdesk-agent read resolve-billing-contact --query term='muster gmbh' --output json",
+      "  sevdesk-agent read find-invoice --query term='acf' --query deepScan=true --output json",
       "  sevdesk-agent read getInvoices --query startDate=1767225600 --query endDate=1769903999 --output json",
       "  sevdesk-agent read getInvoices --query 'contact[id]=123' --output json",
       "",
@@ -574,6 +835,87 @@ program
       await runFindContactByTerm({
         term,
         limit,
+        output: outputMode,
+        xVersion: opts.xVersion,
+      });
+      return;
+    }
+
+    if (
+      operationId === "resolve-billing-contact" ||
+      operationId === "resolveBillingContact"
+    ) {
+      const term =
+        queryParamsInput.term ??
+        queryParamsInput.q ??
+        queryParamsInput.search ??
+        "";
+      if (!term.trim()) {
+        fail(
+          "read resolve-billing-contact requires a term. Example: sevdesk-agent read resolve-billing-contact --query term='muster gmbh' --output json"
+        );
+      }
+
+      const limitRaw = queryParamsInput.limit ?? "10";
+      const limit = Number.parseInt(limitRaw, 10);
+      if (!Number.isFinite(limit) || limit < 1) {
+        fail("read resolve-billing-contact: `limit` must be an integer >= 1.");
+      }
+
+      const outputMode: "pretty" | "json" =
+        opts.output === "json" ? "json" : "pretty";
+      await runResolveBillingContactByTerm({
+        term,
+        limit,
+        output: outputMode,
+        xVersion: opts.xVersion,
+      });
+      return;
+    }
+
+    if (
+      operationId === "find-invoice" ||
+      operationId === "search-invoices" ||
+      operationId === "findInvoice" ||
+      operationId === "searchInvoices"
+    ) {
+      const term =
+        queryParamsInput.term ??
+        queryParamsInput.q ??
+        queryParamsInput.search ??
+        "";
+      if (!term.trim()) {
+        fail(
+          "read find-invoice requires a term. Example: sevdesk-agent read find-invoice --query term='acf' --output json"
+        );
+      }
+
+      const limitRaw = queryParamsInput.limit ?? "20";
+      const limit = Number.parseInt(limitRaw, 10);
+      if (!Number.isFinite(limit) || limit < 1) {
+        fail("read find-invoice: `limit` must be an integer >= 1.");
+      }
+
+      const maxInvoicesRaw = queryParamsInput.maxInvoices ?? "150";
+      const maxInvoices = Number.parseInt(maxInvoicesRaw, 10);
+      if (!Number.isFinite(maxInvoices) || maxInvoices < 1) {
+        fail("read find-invoice: `maxInvoices` must be an integer >= 1.");
+      }
+
+      let deepScan = true;
+      try {
+        deepScan = parseBooleanLike(queryParamsInput.deepScan, true);
+      } catch (error) {
+        fail(`read find-invoice: ${(error as Error).message}`);
+      }
+
+      const outputMode: "pretty" | "json" =
+        opts.output === "json" ? "json" : "pretty";
+      await runFindInvoiceByTerm({
+        term,
+        limit,
+        maxInvoices,
+        deepScan,
         output: outputMode,
         xVersion: opts.xVersion,
       });
@@ -721,104 +1063,12 @@ program
       fail("--output must be either pretty or json.");
     }
 
-    const config = loadConfig({ xVersion: opts.xVersion });
-    const client = new SevdeskClient(config);
-    const contactsResponse = await client.request({
-      method: "GET",
-      path: "/Contact",
-      query: { depth: "1" },
-    });
-    const contacts = extractContactsFromListResponse(contactsResponse.data);
-    const matches = findContacts(contacts, term, limit);
-    if (matches.length === 0) {
-      if (opts.output === "json") {
-        process.stdout.write(
-          `${JSON.stringify({ ok: true, term, recommendation: null, matches: [] })}\n`
-        );
-      } else {
-        process.stdout.write(`No contacts matched "${term}".\n`);
-      }
-      return;
-    }
-
-    const top = matches[0];
-    const topContact = top.contact as Record<string, unknown>;
-    const parent = (topContact.parent ?? null) as Record<string, unknown> | null;
-    const parentId = parent ? String(parent.id ?? "").trim() : "";
-    const hasPersonFields =
-      String(topContact.surename ?? "").trim() !== "" ||
-      String(topContact.familyname ?? "").trim() !== "";
-
-    const recommendedContactId = top.id;
-    const recommendedReason = hasPersonFields
-      ? "Top match is a person; using person contact as billing recipient."
-      : "Top match is a company; using company contact as billing recipient.";
-
-    const addressResponse = await client.request({
-      method: "GET",
-      path: "/ContactAddress",
-      query: {
-        "contact[id]": recommendedContactId,
-        "contact[objectName]": "Contact",
-      },
-    });
-    let addressPreview = "";
-    const ownAddresses = extractObjectArray(addressResponse.data);
-    if (ownAddresses.length > 0) {
-      addressPreview = buildAddressPreview(ownAddresses[0]);
-    }
-
-    if (!addressPreview && parentId) {
-      const parentAddressResponse = await client.request({
-        method: "GET",
-        path: "/ContactAddress",
-        query: {
-          "contact[id]": parentId,
-          "contact[objectName]": "Contact",
-        },
-      });
-      const parentAddresses = extractObjectArray(parentAddressResponse.data);
-      if (parentAddresses.length > 0) {
-        addressPreview = buildAddressPreview(parentAddresses[0]);
-      }
-    }
-
-    const payload = {
-      ok: true,
+    await runResolveBillingContactByTerm({
       term,
-      recommendation: {
-        contact: {
-          id: recommendedContactId,
-          objectName: "Contact",
-        },
-        reason: recommendedReason,
-        parentId: parentId || null,
-        addressPreview: addressPreview || null,
-      },
-      candidates: matches.map((match) => ({
-        score: match.score,
-        id: match.id,
-        displayName: match.displayName,
-        customerNumber: match.customerNumber || null,
-      })),
-    };
-
-    if (opts.output === "json") {
-      process.stdout.write(`${JSON.stringify(payload)}\n`);
-      return;
-    }
-
-    process.stdout.write(`Recommended contact.id: ${recommendedContactId}\n`);
-    process.stdout.write(`Reason: ${recommendedReason}\n`);
-    if (addressPreview) {
-      process.stdout.write(`Address preview: ${addressPreview}\n`);
-    }
-    process.stdout.write(`Candidates:\n`);
-    for (const candidate of payload.candidates) {
-      process.stdout.write(
-        `- ${candidate.score}\t${candidate.id}\t${candidate.displayName}\t${candidate.customerNumber ?? "-"}\n`
-      );
-    }
+      limit,
+      output: opts.output,
+      xVersion: opts.xVersion,
+    });
   });
 
 program
@@ -846,125 +1096,14 @@ program
       fail("--output must be either pretty or json.");
     }
 
-    const searchTerm = term.trim().toLowerCase();
-    if (!searchTerm) {
-      fail("Search term must not be empty.");
-    }
-
-    const config = loadConfig({ xVersion: opts.xVersion });
-    const client = new SevdeskClient(config);
-
-    const invoices: Record<string, unknown>[] = [];
-    let offset = 0;
-    const pageSize = Math.min(100, maxInvoices);
-    while (invoices.length < maxInvoices) {
-      const response = await client.request({
-        method: "GET",
-        path: "/Invoice",
-        query: {
-          limit: String(Math.min(pageSize, maxInvoices - invoices.length)),
-          offset: String(offset),
-        },
-      });
-      const chunk = extractObjectArray(response.data);
-      if (chunk.length === 0) {
-        break;
-      }
-      invoices.push(...chunk);
-      offset += chunk.length;
-      if (chunk.length < pageSize) {
-        break;
-      }
-    }
-
-    const matches: Array<Record<string, unknown>> = [];
-    for (const invoice of invoices) {
-      const invoiceId = String(invoice.id ?? "").trim();
-      if (!invoiceId) {
-        continue;
-      }
-
-      const fields = {
-        invoiceNumber: String(invoice.invoiceNumber ?? "").toLowerCase(),
-        header: String(invoice.header ?? "").toLowerCase(),
-        address: String(invoice.address ?? "").toLowerCase(),
-        customerInternalNote: String(invoice.customerInternalNote ?? "").toLowerCase(),
-      };
-
-      const matchedFields = Object.entries(fields)
-        .filter(([, value]) => value.includes(searchTerm))
-        .map(([key]) => key);
-      let score = Math.max(
-        ...Object.values(fields).map((value) => scoreField(value, searchTerm)),
-        0
-      );
-
-      const matchedPositions: string[] = [];
-      if (opts.deepScan) {
-        const posResponse = await client.request({
-          method: "GET",
-          path: `/Invoice/${invoiceId}/getPositions`,
-        });
-        const positions = extractObjectArray(posResponse.data);
-        for (const pos of positions) {
-          const name = String(pos.name ?? "").toLowerCase();
-          const text = String(pos.text ?? "").toLowerCase();
-          const positionScore = Math.max(
-            scoreField(name, searchTerm),
-            scoreField(text, searchTerm)
-          );
-          if (positionScore > 0) {
-            score = Math.max(score, positionScore + 50);
-            matchedPositions.push(
-              `${String(pos.name ?? "").trim()}${String(pos.text ?? "").trim() ? ` | ${String(pos.text ?? "").trim()}` : ""}`
-            );
-          }
-        }
-      }
-
-      if (score === 0) {
-        continue;
-      }
-
-      matches.push({
-        score,
-        invoiceId,
-        invoiceNumber: invoice.invoiceNumber ?? null,
-        header: invoice.header ?? null,
-        status: invoice.status ?? null,
-        matchedFields,
-        matchedPositions,
-      });
-    }
-
-    matches.sort((a, b) => Number(b.score) - Number(a.score));
-    const sliced = matches.slice(0, limit);
-    const payload = {
-      ok: true,
+    await runFindInvoiceByTerm({
       term,
-      scannedInvoices: invoices.length,
-      matchCount: sliced.length,
-      matches: sliced,
-    };
-
-    if (opts.output === "json") {
-      process.stdout.write(`${JSON.stringify(payload)}\n`);
-      return;
-    }
-
-    if (sliced.length === 0) {
-      process.stdout.write(`No invoice matched "${term}" (scanned=${invoices.length}).\n`);
-      return;
-    }
-
-    process.stdout.write(
-      `score\tinvoiceId\tinvoiceNumber\theader\tstatus\tmatchedFields\tmatchedPositions\n`
-    );
-    for (const row of sliced) {
-      process.stdout.write(
-        `${row.score}\t${row.invoiceId}\t${row.invoiceNumber ?? "-"}\t${row.header ?? "-"}\t${row.status ?? "-"}\t${(row.matchedFields as string[]).join(",") || "-"}\t${(row.matchedPositions as string[]).length}\n`
-      );
-    }
+      limit,
+      maxInvoices,
+      deepScan: Boolean(opts.deepScan),
+      output: opts.output,
+      xVersion: opts.xVersion,
+    });
   });
 
 program

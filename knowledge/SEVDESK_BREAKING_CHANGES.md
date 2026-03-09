@@ -8,6 +8,9 @@ This file tracks user-visible CLI behavior changes that can affect agent runbook
 - `read find-contact` now works as alias for top-level `find-contact`.
   - Before: `find-contact` only as top-level command.
   - Now: both variants supported.
+- `read` aliases expanded for helper workflows:
+  - `read resolve-billing-contact --query term=...`
+  - `read find-invoice --query term=... [--query deepScan=true]`
 - New helper commands:
   - `resolve-billing-contact`
   - `find-invoice` (alias: `search-invoices`)
@@ -17,6 +20,9 @@ This file tracks user-visible CLI behavior changes that can affect agent runbook
 - `createInvoiceByFactory` preflight now validates date consistency:
   - checks `invoiceDate`, `deliveryDate`, `deliveryDateUntil`
   - optional auto-fix via `--auto-fix-delivery-date`
+- `createInvoiceByFactory` preflight now also validates core payload completeness:
+  - `invoice.contact.id`, `invoice.invoiceType`, `invoice.status`
+  - position fields (`quantity`, `price`, `taxRate`) per line.
 - Write error output may include `remediationHints` for known 4xx patterns.
 
 ### Compatibility
