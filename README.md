@@ -4,68 +4,55 @@
 
 # English
 
-## Overview
+## Purpose
 
-`sevdesk-agent-skill` is an agent-first CLI + skill package for sevdesk. It focuses on read-first workflows, API-complete operation discovery, safer writes, verification helpers, safe PDF export, and context snapshots for multi-agent handoffs.
+`sevdesk-agent-skill` gives agents full remote control over a sevdesk bookkeeping system. The goal is to automate accounting workflows end to end: contacts, quotes, invoices, PDF exports, verification steps, and structured handoff between agents.
 
-## Core capabilities
+It is built for companies that want to run recurring accounting processes through agents instead of manual UI work.
 
-- API operation coverage from the official OpenAPI catalog (`154` operations).
-- Read-first execution model via `read <operationId>`.
-- Direct `POST` / `PUT` / `PATCH` writes, with explicit guardrails only for `DELETE`.
-- Preflight validation for high-impact writes:
-  - `createContact`
-  - `createOrder`
-  - `createInvoiceByFactory`
-- Post-write verification:
-  - `--verify`
-  - `--verify-contact`
-- Helper workflows:
-  - `find-contact`
-  - `resolve-billing-contact`
-  - `find-invoice` / `search-invoices`
-  - `create-invoice-installment`
-  - `invoice clone`
-  - `doctor` / `self-check`
-- Safe PDF export for `orderGetPdf` / `invoiceGetPdf` with `preventSendBy=1` by default.
-- Direct PDF decoding with `--decode-pdf`.
-- Runtime quirk handling via `ops-quirks` and normalized `read` output.
-- Agent handoff snapshots via `context snapshot`.
+## What it does
 
-## Why this improves agent workflows
+- Read and inspect the full sevdesk API through operation IDs.
+- Execute write operations for contacts, quotes, invoices, and related bookkeeping workflows.
+- Search contacts and invoices in a workflow-friendly way.
+- Generate installment invoices and cloned recurring invoices from existing data.
+- Export PDFs safely and decode them directly to files.
+- Verify important writes immediately after execution.
+- Capture context snapshots for multi-agent continuation.
 
-- Discovery is deterministic: agents can inspect exact operation IDs instead of guessing endpoints.
-- Contact and invoice lookup are more robust than relying on fragile server-side partial matches.
-- Common write mistakes are caught before the API call.
-- Verification reduces delayed failures in longer workflows.
-- PDF export is safer by default and easier to consume as a file.
+## Main use cases
 
-## Example workflows
+- Fully automated contact-to-quote workflows.
+- Automated invoice generation from structured payloads or existing invoice templates.
+- Recurring accounting processes such as monthly or yearly invoice creation.
+- Agent handoffs where one agent discovers state and another agent finishes the workflow.
+- Backoffice automation for finance teams that want reproducible, scriptable bookkeeping operations.
 
-### 1. Contact onboarding
+## Workflow examples
+
+### Contact creation and verification
 
 ```bash
 sevdesk-agent find-contact "Muster GmbH" --output json
-sevdesk-agent read find-contact --query term="Muster GmbH" --output json
 sevdesk-agent read resolve-billing-contact --query term="Muster GmbH" --output json
 sevdesk-agent write createContact --body-file payloads/contact.create.json --verify-contact
 ```
 
-### 2. Quote creation and PDF export
+### Quote creation and PDF export
 
 ```bash
 sevdesk-agent write createOrder --body-file payloads/order.create.json --verify
-sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer-12345.pdf --suppress-content --output json
+sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer-12345.pdf --output json
 ```
 
-### 3. Invoice creation and finalize runbook
+### Invoice creation
 
 ```bash
 sevdesk-agent write createInvoiceByFactory --body-file payloads/invoice.create.json --verify
 sevdesk-agent docs invoice-finalize
 ```
 
-### 4. Installment invoice from an existing invoice
+### Installment invoice from an existing invoice
 
 ```bash
 sevdesk-agent create-invoice-installment \
@@ -76,7 +63,7 @@ sevdesk-agent create-invoice-installment \
   --verify
 ```
 
-### 5. Recurring invoice clone
+### Recurring invoice clone
 
 ```bash
 sevdesk-agent invoice clone \
@@ -87,7 +74,7 @@ sevdesk-agent invoice clone \
   --verify
 ```
 
-### 6. Invoice search across headers and positions
+### Invoice search across headers and positions
 
 ```bash
 sevdesk-agent find-invoice "acf" --deep-scan --output json
@@ -118,7 +105,6 @@ sevdesk-agent read bookkeepingSystemVersion --output json
 
 - `sevdesk-agent ops list --read-only`
 - `sevdesk-agent op-show <operationId>`
-- `sevdesk-agent ops-quirks --json-array`
 - `sevdesk-agent read <operationId> ...`
 - `sevdesk-agent write <operationId> ...`
 - `sevdesk-agent find-contact <term> ...`
@@ -126,28 +112,12 @@ sevdesk-agent read bookkeepingSystemVersion --output json
 - `sevdesk-agent find-invoice <term> ...`
 - `sevdesk-agent create-invoice-installment ...`
 - `sevdesk-agent invoice clone ...`
-- `sevdesk-agent docs read-ops --output knowledge/READ_OPERATIONS.md`
-- `sevdesk-agent docs invoice-edit`
-- `sevdesk-agent docs invoice-finalize`
 - `sevdesk-agent doctor --json`
 - `sevdesk-agent context snapshot ...`
 
-## Guard model
+## Installation
 
-- `GET`, `POST`, `PUT`, `PATCH` run directly.
-- `DELETE` requires:
-  - `--execute`
-  - `--confirm-execute yes`
-  - `SEVDESK_ALLOW_WRITE=true` or `--allow-write`
-
-## Known caveat
-
-- `voucherUploadFile` (`POST /Voucher/Factory/uploadTempFile`) expects `form-data` binary upload.
-- The current CLI client sends JSON bodies, so this endpoint is visible in the catalog but not fully usable yet.
-
-## Installation via skills.sh
-
-Install the skill globally:
+Install the skill globally through skills.sh:
 
 ```bash
 npx skills add codecell-germany/sevdesk-agent-skill -g --skill sevdesk-agent-cli --agent '*' -y
@@ -159,14 +129,6 @@ List skills in this repository:
 npx skills add codecell-germany/sevdesk-agent-skill -l
 ```
 
-## Package and npx usage
-
-Install the skill payload into Codex home:
-
-```bash
-npx -y @codecell-germany/sevdesk-agent-skill install
-```
-
 Run the CLI directly from npm:
 
 ```bash
@@ -176,10 +138,8 @@ npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent --help
 ## Project structure
 
 - `src/`: CLI source
-- `src/data/operations.json`: operation catalog
-- `src/data/runtime-quirks.json`: runtime quirks
-- `skills/sevdesk-agent-cli/SKILL.md`: skill prompt
-- `knowledge/`: knowledge docs
+- `skills/sevdesk-agent-cli/SKILL.md`: skill definition
+- `knowledge/`: supporting knowledge and generated references
 
 ## Testing
 
@@ -187,15 +147,6 @@ npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent --help
 npm test
 npm run test:live
 ```
-
-Live tests are read-only and require:
-
-- `SEVDESK_LIVE_TESTS=1`
-- `SEVDESK_API_TOKEN`
-
-## Disclaimer
-
-This project is not affiliated with sevdesk. "sevdesk" is a trademark of its owner.
 
 ## License
 
@@ -205,68 +156,55 @@ MIT
 
 # Deutsch
 
-## Überblick
+## Zweck
 
-`sevdesk-agent-skill` ist ein agentenorientiertes CLI- und Skill-Paket für sevdesk. Der Fokus liegt auf Read-first-Workflows, vollständiger API-Discovery, sichereren Writes, Verifikationshilfen, sicherem PDF-Export und Context-Snapshots für Agent-Handoffs.
+`sevdesk-agent-skill` gibt Agenten vollständige Fernsteuerung über ein sevdesk-Buchhaltungssystem. Ziel ist es, Buchhaltungsprozesse Ende zu Ende zu automatisieren: Kontakte, Angebote, Rechnungen, PDF-Exporte, Verifikationsschritte und strukturierte Übergaben zwischen Agenten.
 
-## Kernfunktionen
+Das Paket ist für Firmen gedacht, die wiederkehrende Buchhaltungsabläufe nicht mehr manuell in der UI abarbeiten wollen, sondern agentisch und reproduzierbar ausführen möchten.
 
-- API-Abdeckung auf Basis des offiziellen OpenAPI-Katalogs (`154` Operationen).
-- Read-first-Ausführung über `read <operationId>`.
-- Direkte `POST` / `PUT` / `PATCH`-Writes, mit expliziten Guardrails nur für `DELETE`.
-- Preflight-Validierung für wichtige Writes:
-  - `createContact`
-  - `createOrder`
-  - `createInvoiceByFactory`
-- Verifikation nach Writes:
-  - `--verify`
-  - `--verify-contact`
-- Workflow-Helper:
-  - `find-contact`
-  - `resolve-billing-contact`
-  - `find-invoice` / `search-invoices`
-  - `create-invoice-installment`
-  - `invoice clone`
-  - `doctor` / `self-check`
-- Sicherer PDF-Export für `orderGetPdf` / `invoiceGetPdf` mit `preventSendBy=1` als Default.
-- Direktes PDF-Decoding mit `--decode-pdf`.
-- Runtime-Quirk-Handling über `ops-quirks` und normalisierte `read`-Ausgaben.
-- Agent-Handoff-Snapshots über `context snapshot`.
+## Was der Skill ermöglicht
 
-## Warum das Agent-Workflows verbessert
+- Die gesamte sevdesk-API über Operation-IDs lesen und steuern.
+- Write-Workflows für Kontakte, Angebote, Rechnungen und angrenzende Buchhaltungsprozesse ausführen.
+- Kontakte und Rechnungen workflow-tauglich suchen.
+- Abschlagsrechnungen und wiederkehrende Rechnungen aus bestehenden Daten erzeugen.
+- PDFs sicher exportieren und direkt als Datei schreiben.
+- Wichtige Writes direkt nach dem Ausführen verifizieren.
+- Context-Snapshots für Multi-Agent-Workflows erstellen.
 
-- Discovery ist reproduzierbar: Agenten können exakte Operation-IDs prüfen statt Endpunkte zu raten.
-- Kontakt- und Rechnungssuche ist robuster als unsichere serverseitige Teilstring-Suchen.
-- Häufige Payload-Fehler werden vor dem API-Call abgefangen.
-- Verifikation reduziert Folgefehler in längeren Workflows.
-- PDF-Export ist standardmäßig sicherer und direkt als Datei nutzbar.
+## Typische Anwendungsfälle
 
-## Beispiel-Workflows
+- Vollautomatisierte Kontakt-zu-Angebot-Workflows.
+- Automatisierte Rechnungserstellung aus Payloads oder vorhandenen Rechnungsvorlagen.
+- Wiederkehrende Buchhaltungsprozesse wie monatliche oder jährliche Rechnungsstellung.
+- Agent-Handoffs, bei denen ein Agent den Zustand analysiert und ein anderer Agent den Workflow abschließt.
+- Backoffice-Automatisierung für Finance-Teams, die reproduzierbare und skriptbare Buchhaltungsprozesse wollen.
 
-### 1. Kontakt anlegen
+## Workflow-Beispiele
+
+### Kontakt anlegen und verifizieren
 
 ```bash
 sevdesk-agent find-contact "Muster GmbH" --output json
-sevdesk-agent read find-contact --query term="Muster GmbH" --output json
 sevdesk-agent read resolve-billing-contact --query term="Muster GmbH" --output json
 sevdesk-agent write createContact --body-file payloads/contact.create.json --verify-contact
 ```
 
-### 2. Angebot erstellen und PDF exportieren
+### Angebot erstellen und PDF exportieren
 
 ```bash
 sevdesk-agent write createOrder --body-file payloads/order.create.json --verify
-sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer-12345.pdf --suppress-content --output json
+sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer-12345.pdf --output json
 ```
 
-### 3. Rechnung erstellen und Finalisierungs-Runbook nutzen
+### Rechnung erstellen
 
 ```bash
 sevdesk-agent write createInvoiceByFactory --body-file payloads/invoice.create.json --verify
 sevdesk-agent docs invoice-finalize
 ```
 
-### 4. Abschlagsrechnung aus bestehender Rechnung erzeugen
+### Abschlagsrechnung aus bestehender Rechnung
 
 ```bash
 sevdesk-agent create-invoice-installment \
@@ -277,7 +215,7 @@ sevdesk-agent create-invoice-installment \
   --verify
 ```
 
-### 5. Wiederkehrende Rechnung klonen
+### Wiederkehrende Rechnung klonen
 
 ```bash
 sevdesk-agent invoice clone \
@@ -288,7 +226,7 @@ sevdesk-agent invoice clone \
   --verify
 ```
 
-### 6. Rechnungssuche über Header und Positionen
+### Rechnungssuche über Header und Positionen
 
 ```bash
 sevdesk-agent find-invoice "acf" --deep-scan --output json
@@ -319,7 +257,6 @@ sevdesk-agent read bookkeepingSystemVersion --output json
 
 - `sevdesk-agent ops list --read-only`
 - `sevdesk-agent op-show <operationId>`
-- `sevdesk-agent ops-quirks --json-array`
 - `sevdesk-agent read <operationId> ...`
 - `sevdesk-agent write <operationId> ...`
 - `sevdesk-agent find-contact <term> ...`
@@ -327,28 +264,12 @@ sevdesk-agent read bookkeepingSystemVersion --output json
 - `sevdesk-agent find-invoice <term> ...`
 - `sevdesk-agent create-invoice-installment ...`
 - `sevdesk-agent invoice clone ...`
-- `sevdesk-agent docs read-ops --output knowledge/READ_OPERATIONS.md`
-- `sevdesk-agent docs invoice-edit`
-- `sevdesk-agent docs invoice-finalize`
 - `sevdesk-agent doctor --json`
 - `sevdesk-agent context snapshot ...`
 
-## Guard-Modell
+## Installation
 
-- `GET`, `POST`, `PUT`, `PATCH` laufen direkt.
-- `DELETE` benötigt:
-  - `--execute`
-  - `--confirm-execute yes`
-  - `SEVDESK_ALLOW_WRITE=true` oder `--allow-write`
-
-## Bekannte Einschränkung
-
-- `voucherUploadFile` (`POST /Voucher/Factory/uploadTempFile`) erwartet `form-data` mit Binärdatei.
-- Der aktuelle CLI-Client sendet JSON-Bodies, deshalb ist dieser Endpoint zwar im Katalog sichtbar, aber noch nicht vollständig nutzbar.
-
-## Installation über skills.sh
-
-Skill global installieren:
+Skill global über skills.sh installieren:
 
 ```bash
 npx skills add codecell-germany/sevdesk-agent-skill -g --skill sevdesk-agent-cli --agent '*' -y
@@ -360,15 +281,7 @@ Skills in diesem Repository auflisten:
 npx skills add codecell-germany/sevdesk-agent-skill -l
 ```
 
-## Paket- und npx-Nutzung
-
-Skill-Payload in Codex Home installieren:
-
-```bash
-npx -y @codecell-germany/sevdesk-agent-skill install
-```
-
-CLI direkt aus npm ausführen:
+CLI direkt aus npm starten:
 
 ```bash
 npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent --help
@@ -377,10 +290,8 @@ npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent --help
 ## Projektstruktur
 
 - `src/`: CLI-Quellcode
-- `src/data/operations.json`: Operation-Katalog
-- `src/data/runtime-quirks.json`: Runtime-Quirks
-- `skills/sevdesk-agent-cli/SKILL.md`: Skill-Prompt
-- `knowledge/`: Wissensdokumente
+- `skills/sevdesk-agent-cli/SKILL.md`: Skill-Definition
+- `knowledge/`: begleitende Wissensdokumente und generierte Referenzen
 
 ## Tests
 
@@ -388,15 +299,6 @@ npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent --help
 npm test
 npm run test:live
 ```
-
-Live-Tests sind read-only und benötigen:
-
-- `SEVDESK_LIVE_TESTS=1`
-- `SEVDESK_API_TOKEN`
-
-## Hinweis
-
-Dieses Projekt ist nicht mit sevdesk verbunden. "sevdesk" ist eine Marke des jeweiligen Eigentümers.
 
 ## Lizenz
 
