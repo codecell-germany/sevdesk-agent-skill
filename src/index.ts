@@ -1533,7 +1533,7 @@ program
 program.parseAsync(process.argv).catch((error) => {
   process.stderr.write(`[sevdesk-agent] ${error.message}\n`);
   process.stderr.write(
-    "[sevdesk-agent] Hint: if the wrapper is not executable, run `node dist/index.js <command>`.\n"
+    "[sevdesk-agent] Hint: bootstrap the local CLI shim with `npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent-skill install --force`, then run `~/.codex/bin/sevdesk-agent <command>`.\n"
   );
   process.exitCode = 1;
 });

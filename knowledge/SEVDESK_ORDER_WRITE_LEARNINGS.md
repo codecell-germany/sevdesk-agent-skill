@@ -112,9 +112,11 @@ Recommendation:
   - Contact person
   - Street / ZIP / City / Country
 
-### CLI invocation fallback
-- If shell wrapper `sevdesk-agent` is not executable (`permission denied`), run the same commands via:
-  - `node dist/index.js <command> ...`
+### CLI bootstrap
+- Standard command path for agent runs:
+  - `~/.codex/bin/sevdesk-agent <command> ...`
+- Bootstrap once per machine if the shim is missing:
+  - `npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent-skill install --force`
 
 ## 7. Standard process (must-use) for "new contact + new offer"
 
@@ -176,9 +178,10 @@ The following workflow hardening is now built into the CLI:
 5. One-command PDF output
 - `read orderGetPdf|invoiceGetPdf --decode-pdf output/file.pdf` writes a usable PDF directly.
 
-6. Startup fallback
-- If the wrapper is not executable, CLI error output suggests:
-  - `node dist/index.js <command> ...`
+6. Startup bootstrap
+- If the local shim is missing, CLI docs and error output suggest:
+  - `npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent-skill install --force`
+  - then use `~/.codex/bin/sevdesk-agent <command> ...`
 
 7. Stable quirks JSON for parser workflows
 - `ops-quirks --json` keeps object-mapping compatibility.
@@ -218,6 +221,29 @@ Aus realem Feedback zur Rechnungserstellung wurden folgende Verbesserungen umges
 ### Payload/operation that worked
 - Write call succeeded with:
   - `write createInvoiceByFactory --body-file <file> --execute --confirm-execute yes --allow-write --verify --output json`
+
+## 10. Session notes (2026-03-20): ARO invoice + CLI date preflight conflict
+
+### New helper commands now available
+- `resolve-billing-contact <term>` helps when company/person recipient mapping is unclear.
+- `find-invoice <term> --deep-scan` searches invoice headers plus position texts and is preferable to manual invoice iteration for recurring billing cases.
+
+### Observed preflight conflict on `createInvoiceByFactory`
+- Real historical ARO invoices use:
+  - `invoiceType = RE`
+  - `invoiceDate == deliveryDate`
+- Local CLI preflight rejected this payload with:
+  - ``invoice.deliveryDate` should be later than `invoice.invoiceDate``.
+- Disabling preflight worked:
+  - `write createInvoiceByFactory ... --no-preflight --verify`
+- Live API accepted the invoice and verification passed.
+
+### Practical fallback
+When the local preflight contradicts a known-good historical sevDesk document pattern:
+1. Re-read the last real document for that customer.
+2. Mirror the date semantics from the live object.
+3. Execute with `--no-preflight`.
+4. Always follow with `--verify` and a read/PDF check.
 - Working top-level shape:
   - `invoice` object with full meta (contact, contactPerson, invoiceDate, status, invoiceType, currency, tax fields, address, addressCountry, discount, timeToPay, showNet, mapAll)
   - `invoicePosSave` array with at least one position (`objectName`, `mapAll`, `quantity`, `price`, `name`, `text`, `unity`, `taxRate`)
@@ -287,3 +313,13 @@ Aus realem Feedback zur Rechnungserstellung wurden folgende Verbesserungen umges
 ### Practical fix
 - Ensure `deliveryDate` is at least one day after `invoiceDate` for affected invoice types/workflows.
 - Apply minimal patch only to `deliveryDate` and retry the same payload.
+
+## 13. Session notes (2026-03-16): Offer draft with optional positions
+
+### Preflight behavior
+- `createOrder` preflight currently requires `order.orderNumber`.
+- If it is missing, the CLI blocks the request before API execution.
+
+### Practical implication
+- For offer drafts, determine the next `ANYYYYMM-####` number before running `write createOrder`.
+- Optional positions (`optional: true`) are stored correctly and excluded from the base total, which is useful for hosting and larger add-on packages.

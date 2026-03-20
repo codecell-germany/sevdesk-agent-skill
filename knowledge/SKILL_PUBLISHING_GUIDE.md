@@ -10,7 +10,7 @@ Additionally, the skills.sh ecosystem supports installing skills directly from G
    - optional: `skills/<skill-name>/references/**`, `skills/<skill-name>/agents/**`
 2. A CLI that agents can run:
    - published binary via npm package `bin` (works with `npx -p <pkg> <bin> ...`)
-3. An installer CLI that copies the skill payload into `~/.codex/skills/<skill-name>`:
+3. An installer CLI that copies the skill payload into `~/.codex/skills/<skill-name>` and a persistent CLI shim into `~/.codex/bin/<cli-bin>`:
    - published binary via npm package `bin` (works with `npx <pkg> install`)
 
 ## Repo Layout (Recommended)
@@ -44,7 +44,7 @@ In `package.json`:
 1. For scoped public packages, ensure:
    - `"publishConfig": { "access": "public" }`
 1. Use `prepack` to build and (optionally) generate docs so the tarball is always consistent:
-   - example: `"prepack": "npm run build && node dist/index.js docs ..."`
+   - example: `"prepack": "npm run build && <cli-bin> docs ..."` or `"npm run build && node dist/index.js docs ..."` during local packaging
 
 ## Installer CLI (Skill Copy)
 
@@ -54,6 +54,8 @@ Minimum behavior:
    - `CODEX_HOME` if set, otherwise `~/.codex`
 1. Install path:
    - `${CODEX_HOME}/skills/<skill-name>/`
+   - `${CODEX_HOME}/tools/<skill-name>/dist`
+   - `${CODEX_HOME}/bin/<cli-bin>`
 1. Implement:
    - `install` (copy payload, support `--force`)
    - `uninstall`
@@ -75,7 +77,10 @@ Run all of these from a clean state:
 1. Pack and smoke-test like a user:
    - `npm pack`
    - `TMP=$(mktemp -d) && cd "$TMP" && npx -y ./<tarball>.tgz install --codex-home "$TMP/codex"`
-   - verify files exist: `$TMP/codex/skills/<skill-name>/SKILL.md`
+   - verify files exist:
+     - `$TMP/codex/skills/<skill-name>/SKILL.md`
+     - `$TMP/codex/bin/<cli-bin>`
+     - `$TMP/codex/tools/<skill-name>/dist/index.js`
 1. Verify `npx -p` execution:
    - `TMP=$(mktemp -d) && cd "$TMP" && npx -y -p <pkg> <cli-bin> --help`
 
@@ -114,10 +119,14 @@ skills.sh does not require a separate publish step. A repo becomes discoverable 
    - `npm view <pkg> version`
    - `TMP=$(mktemp -d) && cd "$TMP" && npx -y <pkg> --help`
    - `TMP=$(mktemp -d) && cd "$TMP" && npx -y <pkg> install --codex-home "$TMP/codex"`
+   - `TMP=$(mktemp -d) && "$TMP/codex/bin/<cli-bin>" --help`
 
 ## Post-Publish "Reality Checks"
 
 1. Confirm that the published package actually contains the updated skill payload:
    - install into a temp `CODEX_HOME` and inspect the installed `SKILL.md`
+1. Confirm that the installer produces a persistent runnable CLI:
+   - inspect `$CODEX_HOME/bin/<cli-bin>`
+   - inspect `$CODEX_HOME/tools/<skill-name>/dist/index.js`
 1. Confirm the README instructions still work verbatim.
 1. If you ship generated docs (`knowledge/**`), verify that `prepack` keeps them up to date.

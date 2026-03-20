@@ -6,79 +6,61 @@
 
 ## Purpose
 
-`sevdesk-agent-skill` gives agents full remote control over a sevdesk bookkeeping system. The goal is to automate accounting workflows end to end: contacts, quotes, invoices, PDF exports, verification steps, and structured handoff between agents.
+`sevdesk-agent-skill` gives agents full remote control over a sevdesk bookkeeping system.
+Its purpose is to automate accounting workflows end to end: contacts, quotes, invoices, PDF exports, verification steps, and structured handoffs between agents.
 
-It is built for companies that want to run recurring accounting processes through agents instead of manual UI work.
+The skill is designed for companies that want to run bookkeeping processes through agents instead of manual UI work.
 
-## What it does
+## What the skill enables
 
-- Read and inspect the full sevdesk API through operation IDs.
-- Execute write operations for contacts, quotes, invoices, and related bookkeeping workflows.
-- Search contacts and invoices in a workflow-friendly way.
-- Generate installment invoices and cloned recurring invoices from existing data.
-- Export PDFs safely and decode them directly to files.
-- Verify important writes immediately after execution.
-- Capture context snapshots for multi-agent continuation.
+- Full read access across the sevdesk API through stable operation IDs
+- Write workflows for contacts, quotes, invoices, and related accounting objects
+- Reliable helper flows for contact lookup, billing contact resolution, and invoice discovery
+- Template-based invoice workflows such as installments and recurring clones
+- Safe PDF export and direct file decoding
+- Verification after writes to reduce workflow drift
+- Context snapshots for multi-agent continuation
 
-## Main use cases
+## Typical workflows
 
-- Fully automated contact-to-quote workflows.
-- Automated invoice generation from structured payloads or existing invoice templates.
-- Recurring accounting processes such as monthly or yearly invoice creation.
-- Agent handoffs where one agent discovers state and another agent finishes the workflow.
-- Backoffice automation for finance teams that want reproducible, scriptable bookkeeping operations.
+- Contact creation and enrichment
+- Contact to quote workflows
+- Quote to invoice workflows
+- Installment invoice creation from existing invoices
+- Recurring invoice generation from templates
+- Finance backoffice automation with reproducible agent runs
+- Multi-agent bookkeeping workflows with explicit state handoff
 
-## Workflow examples
+## Installation
 
-### Contact creation and verification
+### 1. Install the skill
 
 ```bash
-sevdesk-agent find-contact "Muster GmbH" --output json
-sevdesk-agent read resolve-billing-contact --query term="Muster GmbH" --output json
-sevdesk-agent write createContact --body-file payloads/contact.create.json --verify-contact
+npx skills add codecell-germany/sevdesk-agent-skill -g --skill sevdesk-agent-cli --agent '*' -y
 ```
 
-### Quote creation and PDF export
+### 2. Bootstrap the local CLI once
 
 ```bash
-sevdesk-agent write createOrder --body-file payloads/order.create.json --verify
-sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer-12345.pdf --output json
+npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent-skill install --force
 ```
 
-### Invoice creation
+This installs the skill payload into `~/.codex/skills/` and the runnable CLI shim into:
 
 ```bash
-sevdesk-agent write createInvoiceByFactory --body-file payloads/invoice.create.json --verify
-sevdesk-agent docs invoice-finalize
+~/.codex/bin/sevdesk-agent
 ```
 
-### Installment invoice from an existing invoice
+### 3. Use the CLI
 
 ```bash
-sevdesk-agent create-invoice-installment \
-  --from-invoice 12345 \
-  --percent 70 \
-  --label "Installment Phase 2" \
-  --execute \
-  --verify
+~/.codex/bin/sevdesk-agent --help
 ```
 
-### Recurring invoice clone
+Optional: if `~/.codex/bin` is on your `PATH`, you can also use:
 
 ```bash
-sevdesk-agent invoice clone \
-  --from 12345 \
-  --period monthly \
-  --override-position-price 0=199.00 \
-  --execute \
-  --verify
-```
-
-### Invoice search across headers and positions
-
-```bash
-sevdesk-agent find-invoice "acf" --deep-scan --output json
-sevdesk-agent read find-invoice --query term="acf" --query deepScan=true --output json
+sevdesk-agent --help
 ```
 
 ## Quick start
@@ -89,51 +71,76 @@ Requirements:
 - `SEVDESK_API_TOKEN`
 
 ```bash
-npm install
-npm run build
 export SEVDESK_API_TOKEN="..."
-node dist/index.js read bookkeepingSystemVersion --output json
+~/.codex/bin/sevdesk-agent read bookkeepingSystemVersion --output json
 ```
 
-If the local wrapper is executable:
+## Workflow examples
+
+### Contact creation and verification
 
 ```bash
-sevdesk-agent read bookkeepingSystemVersion --output json
+~/.codex/bin/sevdesk-agent find-contact "Muster GmbH" --output json
+~/.codex/bin/sevdesk-agent read resolve-billing-contact --query term="Muster GmbH" --output json
+~/.codex/bin/sevdesk-agent write createContact --body-file payloads/contact.create.json --verify-contact
+```
+
+### Quote creation and PDF export
+
+```bash
+~/.codex/bin/sevdesk-agent write createOrder --body-file payloads/order.create.json --verify
+~/.codex/bin/sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer-12345.pdf --suppress-content --output json
+```
+
+### Invoice creation
+
+```bash
+~/.codex/bin/sevdesk-agent write createInvoiceByFactory --body-file payloads/invoice.create.json --verify
+~/.codex/bin/sevdesk-agent docs invoice-finalize
+```
+
+### Installment invoice from an existing invoice
+
+```bash
+~/.codex/bin/sevdesk-agent create-invoice-installment \
+  --from-invoice 12345 \
+  --percent 70 \
+  --label "Installment Phase 2" \
+  --execute \
+  --verify
+```
+
+### Recurring invoice clone
+
+```bash
+~/.codex/bin/sevdesk-agent invoice clone \
+  --from 12345 \
+  --period monthly \
+  --override-position-price 0=199.00 \
+  --execute \
+  --verify
+```
+
+### Invoice search across headers and positions
+
+```bash
+~/.codex/bin/sevdesk-agent find-invoice "acf" --deep-scan --output json
+~/.codex/bin/sevdesk-agent read find-invoice --query term="acf" --query deepScan=true --output json
 ```
 
 ## CLI overview
 
-- `sevdesk-agent ops list --read-only`
-- `sevdesk-agent op-show <operationId>`
-- `sevdesk-agent read <operationId> ...`
-- `sevdesk-agent write <operationId> ...`
-- `sevdesk-agent find-contact <term> ...`
-- `sevdesk-agent resolve-billing-contact <term> ...`
-- `sevdesk-agent find-invoice <term> ...`
-- `sevdesk-agent create-invoice-installment ...`
-- `sevdesk-agent invoice clone ...`
-- `sevdesk-agent doctor --json`
-- `sevdesk-agent context snapshot ...`
-
-## Installation
-
-Install the skill globally through skills.sh:
-
-```bash
-npx skills add codecell-germany/sevdesk-agent-skill -g --skill sevdesk-agent-cli --agent '*' -y
-```
-
-List skills in this repository:
-
-```bash
-npx skills add codecell-germany/sevdesk-agent-skill -l
-```
-
-Run the CLI directly from npm:
-
-```bash
-npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent --help
-```
+- `~/.codex/bin/sevdesk-agent ops list --read-only`
+- `~/.codex/bin/sevdesk-agent op-show <operationId>`
+- `~/.codex/bin/sevdesk-agent read <operationId> ...`
+- `~/.codex/bin/sevdesk-agent write <operationId> ...`
+- `~/.codex/bin/sevdesk-agent find-contact <term> ...`
+- `~/.codex/bin/sevdesk-agent resolve-billing-contact <term> ...`
+- `~/.codex/bin/sevdesk-agent find-invoice <term> ...`
+- `~/.codex/bin/sevdesk-agent create-invoice-installment ...`
+- `~/.codex/bin/sevdesk-agent invoice clone ...`
+- `~/.codex/bin/sevdesk-agent doctor --json`
+- `~/.codex/bin/sevdesk-agent context snapshot ...`
 
 ## Project structure
 
@@ -158,79 +165,61 @@ MIT
 
 ## Zweck
 
-`sevdesk-agent-skill` gibt Agenten vollständige Fernsteuerung über ein sevdesk-Buchhaltungssystem. Ziel ist es, Buchhaltungsprozesse Ende zu Ende zu automatisieren: Kontakte, Angebote, Rechnungen, PDF-Exporte, Verifikationsschritte und strukturierte Übergaben zwischen Agenten.
+`sevdesk-agent-skill` gibt Agenten vollständige Fernsteuerung über ein sevdesk-Buchhaltungssystem.
+Der Skill ist dafür gedacht, Buchhaltungsprozesse Ende zu Ende zu automatisieren: Kontakte, Angebote, Rechnungen, PDF-Exporte, Verifikationsschritte und strukturierte Übergaben zwischen Agenten.
 
-Das Paket ist für Firmen gedacht, die wiederkehrende Buchhaltungsabläufe nicht mehr manuell in der UI abarbeiten wollen, sondern agentisch und reproduzierbar ausführen möchten.
+Er richtet sich an Firmen, die Buchhaltungsabläufe nicht mehr manuell in der UI abarbeiten wollen, sondern agentisch und reproduzierbar steuern möchten.
 
 ## Was der Skill ermöglicht
 
-- Die gesamte sevdesk-API über Operation-IDs lesen und steuern.
-- Write-Workflows für Kontakte, Angebote, Rechnungen und angrenzende Buchhaltungsprozesse ausführen.
-- Kontakte und Rechnungen workflow-tauglich suchen.
-- Abschlagsrechnungen und wiederkehrende Rechnungen aus bestehenden Daten erzeugen.
-- PDFs sicher exportieren und direkt als Datei schreiben.
-- Wichtige Writes direkt nach dem Ausführen verifizieren.
-- Context-Snapshots für Multi-Agent-Workflows erstellen.
+- Vollständigen Lesezugriff auf die sevdesk-API über stabile Operation-IDs
+- Write-Workflows für Kontakte, Angebote, Rechnungen und angrenzende Buchhaltungsobjekte
+- Zuverlässige Helper-Flows für Kontaktsuche, Rechnungsempfänger-Auflösung und Rechnungssuche
+- Vorlagenbasierte Rechnungsabläufe wie Abschläge und wiederkehrende Klone
+- Sicheren PDF-Export mit direkter Dateiausgabe
+- Verifikation nach Writes zur Reduktion von Workflow-Drift
+- Context-Snapshots für Multi-Agent-Weitergabe
 
-## Typische Anwendungsfälle
+## Typische Workflows
 
-- Vollautomatisierte Kontakt-zu-Angebot-Workflows.
-- Automatisierte Rechnungserstellung aus Payloads oder vorhandenen Rechnungsvorlagen.
-- Wiederkehrende Buchhaltungsprozesse wie monatliche oder jährliche Rechnungsstellung.
-- Agent-Handoffs, bei denen ein Agent den Zustand analysiert und ein anderer Agent den Workflow abschließt.
-- Backoffice-Automatisierung für Finance-Teams, die reproduzierbare und skriptbare Buchhaltungsprozesse wollen.
+- Kontakte anlegen und anreichern
+- Kontakt-zu-Angebot-Workflows
+- Angebot-zu-Rechnung-Workflows
+- Abschlagsrechnungen aus bestehenden Rechnungen erzeugen
+- Wiederkehrende Rechnungen aus Vorlagen erzeugen
+- Backoffice-Automatisierung für Finance-Teams
+- Multi-Agent-Buchhaltungsabläufe mit explizitem Handoff
 
-## Workflow-Beispiele
+## Installation
 
-### Kontakt anlegen und verifizieren
+### 1. Skill installieren
 
 ```bash
-sevdesk-agent find-contact "Muster GmbH" --output json
-sevdesk-agent read resolve-billing-contact --query term="Muster GmbH" --output json
-sevdesk-agent write createContact --body-file payloads/contact.create.json --verify-contact
+npx skills add codecell-germany/sevdesk-agent-skill -g --skill sevdesk-agent-cli --agent '*' -y
 ```
 
-### Angebot erstellen und PDF exportieren
+### 2. Lokales CLI einmal bootstrapen
 
 ```bash
-sevdesk-agent write createOrder --body-file payloads/order.create.json --verify
-sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer-12345.pdf --output json
+npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent-skill install --force
 ```
 
-### Rechnung erstellen
+Dadurch wird der Skill nach `~/.codex/skills/` installiert und der ausführbare CLI-Shim nach:
 
 ```bash
-sevdesk-agent write createInvoiceByFactory --body-file payloads/invoice.create.json --verify
-sevdesk-agent docs invoice-finalize
+~/.codex/bin/sevdesk-agent
 ```
 
-### Abschlagsrechnung aus bestehender Rechnung
+### 3. CLI verwenden
 
 ```bash
-sevdesk-agent create-invoice-installment \
-  --from-invoice 12345 \
-  --percent 70 \
-  --label "Abschlag Phase 2" \
-  --execute \
-  --verify
+~/.codex/bin/sevdesk-agent --help
 ```
 
-### Wiederkehrende Rechnung klonen
+Optional: wenn `~/.codex/bin` auf deinem `PATH` liegt, funktioniert auch:
 
 ```bash
-sevdesk-agent invoice clone \
-  --from 12345 \
-  --period monthly \
-  --override-position-price 0=199.00 \
-  --execute \
-  --verify
-```
-
-### Rechnungssuche über Header und Positionen
-
-```bash
-sevdesk-agent find-invoice "acf" --deep-scan --output json
-sevdesk-agent read find-invoice --query term="acf" --query deepScan=true --output json
+sevdesk-agent --help
 ```
 
 ## Schnellstart
@@ -241,57 +230,82 @@ Voraussetzungen:
 - `SEVDESK_API_TOKEN`
 
 ```bash
-npm install
-npm run build
 export SEVDESK_API_TOKEN="..."
-node dist/index.js read bookkeepingSystemVersion --output json
+~/.codex/bin/sevdesk-agent read bookkeepingSystemVersion --output json
 ```
 
-Wenn der lokale Wrapper ausführbar ist:
+## Workflow-Beispiele
+
+### Kontakt anlegen und verifizieren
 
 ```bash
-sevdesk-agent read bookkeepingSystemVersion --output json
+~/.codex/bin/sevdesk-agent find-contact "Muster GmbH" --output json
+~/.codex/bin/sevdesk-agent read resolve-billing-contact --query term="Muster GmbH" --output json
+~/.codex/bin/sevdesk-agent write createContact --body-file payloads/contact.create.json --verify-contact
+```
+
+### Angebot erstellen und PDF exportieren
+
+```bash
+~/.codex/bin/sevdesk-agent write createOrder --body-file payloads/order.create.json --verify
+~/.codex/bin/sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer-12345.pdf --suppress-content --output json
+```
+
+### Rechnung erstellen
+
+```bash
+~/.codex/bin/sevdesk-agent write createInvoiceByFactory --body-file payloads/invoice.create.json --verify
+~/.codex/bin/sevdesk-agent docs invoice-finalize
+```
+
+### Abschlagsrechnung aus bestehender Rechnung
+
+```bash
+~/.codex/bin/sevdesk-agent create-invoice-installment \
+  --from-invoice 12345 \
+  --percent 70 \
+  --label "Abschlag Phase 2" \
+  --execute \
+  --verify
+```
+
+### Wiederkehrende Rechnung klonen
+
+```bash
+~/.codex/bin/sevdesk-agent invoice clone \
+  --from 12345 \
+  --period monthly \
+  --override-position-price 0=199.00 \
+  --execute \
+  --verify
+```
+
+### Rechnungssuche über Header und Positionen
+
+```bash
+~/.codex/bin/sevdesk-agent find-invoice "acf" --deep-scan --output json
+~/.codex/bin/sevdesk-agent read find-invoice --query term="acf" --query deepScan=true --output json
 ```
 
 ## CLI-Überblick
 
-- `sevdesk-agent ops list --read-only`
-- `sevdesk-agent op-show <operationId>`
-- `sevdesk-agent read <operationId> ...`
-- `sevdesk-agent write <operationId> ...`
-- `sevdesk-agent find-contact <term> ...`
-- `sevdesk-agent resolve-billing-contact <term> ...`
-- `sevdesk-agent find-invoice <term> ...`
-- `sevdesk-agent create-invoice-installment ...`
-- `sevdesk-agent invoice clone ...`
-- `sevdesk-agent doctor --json`
-- `sevdesk-agent context snapshot ...`
-
-## Installation
-
-Skill global über skills.sh installieren:
-
-```bash
-npx skills add codecell-germany/sevdesk-agent-skill -g --skill sevdesk-agent-cli --agent '*' -y
-```
-
-Skills in diesem Repository auflisten:
-
-```bash
-npx skills add codecell-germany/sevdesk-agent-skill -l
-```
-
-CLI direkt aus npm starten:
-
-```bash
-npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent --help
-```
+- `~/.codex/bin/sevdesk-agent ops list --read-only`
+- `~/.codex/bin/sevdesk-agent op-show <operationId>`
+- `~/.codex/bin/sevdesk-agent read <operationId> ...`
+- `~/.codex/bin/sevdesk-agent write <operationId> ...`
+- `~/.codex/bin/sevdesk-agent find-contact <term> ...`
+- `~/.codex/bin/sevdesk-agent resolve-billing-contact <term> ...`
+- `~/.codex/bin/sevdesk-agent find-invoice <term> ...`
+- `~/.codex/bin/sevdesk-agent create-invoice-installment ...`
+- `~/.codex/bin/sevdesk-agent invoice clone ...`
+- `~/.codex/bin/sevdesk-agent doctor --json`
+- `~/.codex/bin/sevdesk-agent context snapshot ...`
 
 ## Projektstruktur
 
 - `src/`: CLI-Quellcode
 - `skills/sevdesk-agent-cli/SKILL.md`: Skill-Definition
-- `knowledge/`: begleitende Wissensdokumente und generierte Referenzen
+- `knowledge/`: unterstützende Knowledge-Dateien und generierte Referenzen
 
 ## Tests
 
