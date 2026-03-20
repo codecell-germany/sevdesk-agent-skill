@@ -26,7 +26,7 @@ Den Ablauf `Kontakt anlegen -> Angebot erstellen -> PDF ausgeben` robust, reprod
 
 4. Stabiler CLI-Startweg
 - Problem: `sevdesk-agent` kann lokal `permission denied` liefern.
-- Verbesserung: Startup-Fallback/Hint auf `node dist/index.js ...` im CLI-Fehlerfall.
+- Verbesserung: stabiler Bootstrap auf `~/.codex/bin/sevdesk-agent` via `npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent-skill install --force`.
 - Akzeptanz: Nutzer bekommt immer einen funktionierenden Startbefehl vorgeschlagen.
 
 ## P1 (kurzfristig)
@@ -74,7 +74,7 @@ Den Ablauf `Kontakt anlegen -> Angebot erstellen -> PDF ausgeben` robust, reprod
 ## Konkrete Skill-Textänderungen (empfohlen)
 
 1. In `skills/sevdesk-agent-cli/SKILL.md` ergänzen:
-- expliziter Fallback `node dist/index.js ...`
+- expliziter Bootstrap auf `~/.codex/bin/sevdesk-agent`
 - Pflicht-Hinweis auf `preventSendBy=1` beim PDF-Export
 - Standardprozess „Kontakt + Angebot“ als eigene Sektion
 
@@ -112,7 +112,7 @@ Den Ablauf `Kontakt anlegen -> Angebot erstellen -> PDF ausgeben` robust, reprod
 
 ### Zusätzlich umgesetzt
 - [x] Stabiler Start-Hinweis:
-  - CLI-Fehlerausgabe enthält Fallback: `node dist/index.js <command>`.
+  - CLI-Fehlerausgabe enthält Bootstrap-Hinweis auf `~/.codex/bin/sevdesk-agent`.
 - [x] Skill/Cheatsheet aktualisiert:
   - Runbook „Kontakt + Angebot + PDF“ in `skills/sevdesk-agent-cli/SKILL.md`.
   - `ops-quirks --json` Mapping-Hinweis (`to_entries[]`) dokumentiert.
@@ -132,6 +132,19 @@ Den Ablauf `Kontakt anlegen -> Angebot erstellen -> PDF ausgeben` robust, reprod
 - [ ] P1.6 `create-offer` High-Level Kommando
 - [ ] P1.8 Nummern-Generator `next-order-number`
 - [ ] P2.11 Safety-Profile (`--profile ...`)
+
+## CLI-Bootstrap-Änderung (2026-03-20)
+
+- Standardpfad für Agenten ist jetzt der lokale Shim:
+  - `~/.codex/bin/sevdesk-agent`
+- Einmaliger Bootstrap:
+  - `npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent-skill install --force`
+- Der Installer kopiert jetzt:
+  - Skill-Payload nach `~/.codex/skills/sevdesk-agent-cli`
+  - CLI-Runtime nach `~/.codex/tools/sevdesk-agent-cli/dist`
+  - ausführbaren Shim nach `~/.codex/bin/sevdesk-agent`
+- Ziel:
+  - keine `node dist/index.js ...`-Nutzung mehr in Skill-Doku und Agent-Workflows
 
 ## OpenAPI Coverage Audit (2026-02-27)
 

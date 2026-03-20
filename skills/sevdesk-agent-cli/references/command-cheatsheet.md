@@ -1,6 +1,14 @@
 # sevdesk-agent command cheat sheet
 
-## Build
+## Bootstrap
+```bash
+npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent-skill install --force
+~/.codex/bin/sevdesk-agent --help
+```
+
+Optional: if `~/.codex/bin` is on `PATH`, `sevdesk-agent ...` works directly.
+
+## Build (repo checkout)
 ```bash
 npm install
 npm run build
@@ -8,23 +16,23 @@ npm run build
 
 ## Read-only discovery
 ```bash
-sevdesk-agent ops list --read-only
-sevdesk-agent op-show getInvoices
-sevdesk-agent ops-quirks
-sevdesk-agent ops-quirks --json-array
+~/.codex/bin/sevdesk-agent ops list --read-only
+~/.codex/bin/sevdesk-agent op-show getInvoices
+~/.codex/bin/sevdesk-agent ops-quirks
+~/.codex/bin/sevdesk-agent ops-quirks --json-array
 ```
 
 ## Read call
 ```bash
-sevdesk-agent read getInvoices --output pretty
-sevdesk-agent read getContacts --query customerNumber=10001
-sevdesk-agent read contactCustomerNumberAvailabilityCheck --query customerNumber=10001
-sevdesk-agent find-contact nikolas --output json
-sevdesk-agent read find-contact --query term=nikolas --output json
-sevdesk-agent resolve-billing-contact "Muster GmbH" --output json
-sevdesk-agent read resolve-billing-contact --query term="Muster GmbH" --output json
-sevdesk-agent find-invoice acf --deep-scan --output json
-sevdesk-agent read find-invoice --query term=acf --query deepScan=true --output json
+~/.codex/bin/sevdesk-agent read getInvoices --output pretty
+~/.codex/bin/sevdesk-agent read getContacts --query customerNumber=10001
+~/.codex/bin/sevdesk-agent read contactCustomerNumberAvailabilityCheck --query customerNumber=10001
+~/.codex/bin/sevdesk-agent find-contact nikolas --output json
+~/.codex/bin/sevdesk-agent read find-contact --query term=nikolas --output json
+~/.codex/bin/sevdesk-agent resolve-billing-contact "Muster GmbH" --output json
+~/.codex/bin/sevdesk-agent read resolve-billing-contact --query term="Muster GmbH" --output json
+~/.codex/bin/sevdesk-agent find-invoice acf --deep-scan --output json
+~/.codex/bin/sevdesk-agent read find-invoice --query term=acf --query deepScan=true --output json
 ```
 
 By default `read` includes:
@@ -38,19 +46,19 @@ PDF safety defaults:
 
 Direct PDF decode:
 ```bash
-sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer.pdf --suppress-content --output json
+~/.codex/bin/sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer.pdf --suppress-content --output json
 ```
 
 ## Write call (`POST`/`PUT`/`PATCH` directly)
 ```bash
-sevdesk-agent write createContact \
+~/.codex/bin/sevdesk-agent write createContact \
   --body-file ./payloads/contact.create.json \
   --verify-contact
 ```
 
 Disable customerNumber auto-fix while still verifying:
 ```bash
-sevdesk-agent write createContact --body-file ./payloads/contact.create.json --verify-contact --no-fix-contact
+~/.codex/bin/sevdesk-agent write createContact --body-file ./payloads/contact.create.json --verify-contact --no-fix-contact
 ```
 
 Preflight validation runs by default for:
@@ -60,12 +68,12 @@ Preflight validation runs by default for:
 
 Disable preflight (rare):
 ```bash
-sevdesk-agent write createOrder --body-file ./payloads/order.json --no-preflight
+~/.codex/bin/sevdesk-agent write createOrder --body-file ./payloads/order.json --no-preflight
 ```
 
 Auto-fix invoice delivery date on create:
 ```bash
-sevdesk-agent write createInvoiceByFactory \
+~/.codex/bin/sevdesk-agent write createInvoiceByFactory \
   --body-file ./payloads/invoice.create.json \
   --auto-fix-delivery-date \
   --verify
@@ -73,19 +81,19 @@ sevdesk-agent write createInvoiceByFactory \
 
 Invoice create verification:
 ```bash
-sevdesk-agent write createInvoiceByFactory --body-file ./payloads/invoice.create.json --verify
+~/.codex/bin/sevdesk-agent write createInvoiceByFactory --body-file ./payloads/invoice.create.json --verify
 ```
 
 High-level invoice helpers:
 ```bash
-sevdesk-agent create-invoice-installment \
+~/.codex/bin/sevdesk-agent create-invoice-installment \
   --from-invoice 12345 \
   --percent 70 \
   --label "Abschlag Phase 2" \
   --execute \
   --verify
 
-sevdesk-agent invoice clone \
+~/.codex/bin/sevdesk-agent invoice clone \
   --from 12345 \
   --period monthly \
   --override-position-price 0=199.00 \
@@ -95,7 +103,7 @@ sevdesk-agent invoice clone \
 
 ## Delete call (guarded)
 ```bash
-sevdesk-agent write deleteOrder \
+~/.codex/bin/sevdesk-agent write deleteOrder \
   --path orderId=12345 \
   --execute \
   --confirm-execute yes \
@@ -104,27 +112,27 @@ sevdesk-agent write deleteOrder \
 
 Invoice edit workflow (no generic updateInvoice route):
 ```bash
-sevdesk-agent docs invoice-edit
+~/.codex/bin/sevdesk-agent docs invoice-edit
 ```
 
 Invoice finalize workflow:
 ```bash
-sevdesk-agent docs invoice-finalize
+~/.codex/bin/sevdesk-agent docs invoice-finalize
 ```
 
 Self-check:
 ```bash
-sevdesk-agent doctor --json
+~/.codex/bin/sevdesk-agent doctor --json
 ```
 
 ## Context snapshot for agent continuation
 ```bash
-sevdesk-agent context snapshot
+~/.codex/bin/sevdesk-agent context snapshot
 ```
 
 Optional: write snapshot to file
 ```bash
-sevdesk-agent context snapshot \
+~/.codex/bin/sevdesk-agent context snapshot \
   --output .context/sevdesk-context-snapshot.json \
   --include-default \
   --include-plans \
@@ -140,8 +148,3 @@ npm run test:live
 `test:live` is read-only and runs only if:
 - `SEVDESK_LIVE_TESTS=1`
 - `SEVDESK_API_TOKEN` is set
-
-CLI fallback when wrapper is not executable:
-```bash
-node dist/index.js <command> ...
-```
