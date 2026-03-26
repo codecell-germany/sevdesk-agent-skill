@@ -11,7 +11,7 @@ export function loadConfig(options: LoadConfigOptions = {}): CliConfig {
   const baseUrl =
     process.env.SEVDESK_BASE_URL?.trim() || "https://my.sevdesk.de/api/v1";
   const userAgent =
-    process.env.SEVDESK_USER_AGENT?.trim() || "sevdesk-agent-cli/0.1.0";
+    process.env.SEVDESK_USER_AGENT?.trim() || "sevdesk-agent-cli/0.1.7";
   const allowWrite =
     options.allowWriteOverride || process.env.SEVDESK_ALLOW_WRITE === "true";
 

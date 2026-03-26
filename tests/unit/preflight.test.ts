@@ -129,4 +129,102 @@ describe("validateWritePreflight", () => {
     expect(output).toContain("invoicePosSave[0].price");
     expect(output).toContain("invoicePosSave[0].taxRate");
   });
+
+  it("accepts valid voucherFactorySaveVoucher payload", () => {
+    const result = validateWritePreflight("voucherFactorySaveVoucher", {
+      voucher: {
+        objectName: "Voucher",
+        mapAll: true,
+        status: 50,
+        voucherType: "VOU",
+        creditDebit: "D",
+        taxType: "default",
+        taxRule: { id: "9", objectName: "TaxRule" },
+        currency: "EUR",
+        voucherDate: "2026-03-10",
+        deliveryDate: "2026-03-10",
+        description: "Adobe",
+        supplierName: "Adobe",
+      },
+      voucherPosSave: [
+        {
+          objectName: "VoucherPos",
+          mapAll: true,
+          accountDatev: { id: "700", objectName: "AccountDatev" },
+          accountingType: { id: "33", objectName: "AccountingType" },
+          taxRate: 19,
+          net: false,
+          sumNet: 100,
+          sumGross: 119,
+        },
+      ],
+      filename: "hash.pdf",
+    });
+
+    expect(result.errors).toEqual([]);
+  });
+
+  it("rejects voucherFactorySaveVoucher without account mapping", () => {
+    const result = validateWritePreflight("voucherFactorySaveVoucher", {
+      voucher: {
+        objectName: "Voucher",
+        status: 50,
+        voucherType: "VOU",
+        creditDebit: "D",
+        taxType: "default",
+        taxRule: { id: "9", objectName: "TaxRule" },
+        currency: "EUR",
+        voucherDate: "2026-03-10",
+        deliveryDate: "2026-03-10",
+        description: "Adobe",
+        supplierName: "Adobe",
+      },
+      voucherPosSave: [
+        {
+          objectName: "VoucherPos",
+          mapAll: true,
+          taxRate: 19,
+          net: false,
+          sumNet: 100,
+          sumGross: 119,
+        },
+      ],
+    });
+
+    const output = result.errors.join("\n");
+    expect(output).toContain("accountDatev.id");
+    expect(output).toContain("accountingType.id");
+  });
+
+  it("accepts valid bookVoucher payload", () => {
+    const result = validateWritePreflight("bookVoucher", {
+      amount: 119,
+      date: "2026-03-11",
+      type: "FULL_PAYMENT",
+      checkAccount: { id: "5", objectName: "CheckAccount" },
+      checkAccountTransaction: {
+        id: "100",
+        objectName: "CheckAccountTransaction",
+      },
+    });
+
+    expect(result.errors).toEqual([]);
+  });
+
+  it("rejects invalid bookVoucher payload", () => {
+    const result = validateWritePreflight("bookVoucher", {
+      amount: 0,
+      date: "not-a-date",
+      type: "",
+      checkAccount: {},
+      checkAccountTransaction: { objectName: "CheckAccountTransaction" },
+    });
+
+    const output = result.errors.join("\n");
+    expect(output).toContain("amount");
+    expect(output).toContain("date");
+    expect(output).toContain("type");
+    expect(output).toContain("checkAccount.id");
+    expect(output).toContain("checkAccountTransaction.id");
+  });
 });

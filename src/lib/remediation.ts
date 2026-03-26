@@ -78,6 +78,30 @@ export function deriveRemediationHints(options: {
     );
   }
 
+  if (options.operationId === "voucherUploadFile" && options.status === 400) {
+    hints.add(
+      "Use multipart upload (`--form-file file=/absolute/path/to/document.pdf`) or the high-level `create-voucher-from-pdf` workflow."
+    );
+  }
+
+  if (
+    options.operationId === "voucherFactorySaveVoucher" &&
+    (joined.includes("accountdatev") || joined.includes("accountingtype"))
+  ) {
+    hints.add(
+      "For sevdesk 2.0 voucher positions, provide both `accountDatev.id` and `accountingType.id`. Use the receipt guidance endpoints to choose a valid account."
+    );
+  }
+
+  if (
+    options.operationId === "bookVoucher" &&
+    joined.includes("transaction")
+  ) {
+    hints.add(
+      "For online accounts, pass `checkAccountTransaction.id`; for offline/register accounts, omit it and let sevdesk create the booking transaction."
+    );
+  }
+
   if (options.status === 401 || joined.includes("unauthorized")) {
     hints.add("Verify `SEVDESK_API_TOKEN` and account permissions for this operation.");
   }
@@ -88,4 +112,3 @@ export function deriveRemediationHints(options: {
 
   return [...hints];
 }
-

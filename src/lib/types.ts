@@ -16,12 +16,19 @@ export interface OperationCatalogEntry {
   responseCodes: string[];
 }
 
+export interface SevdeskFormFile {
+  filePath: string;
+  filename?: string;
+  contentType?: string;
+}
+
 export interface SevdeskRequest {
   method: HttpMethod;
   path: string;
   query?: Record<string, string>;
   headers?: Record<string, string>;
   body?: unknown;
+  formData?: Record<string, string | SevdeskFormFile>;
 }
 
 export interface SevdeskResponse {

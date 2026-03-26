@@ -33,6 +33,10 @@ npm run build
 ~/.codex/bin/sevdesk-agent read resolve-billing-contact --query term="Muster GmbH" --output json
 ~/.codex/bin/sevdesk-agent find-invoice acf --deep-scan --output json
 ~/.codex/bin/sevdesk-agent read find-invoice --query term=acf --query deepScan=true --output json
+~/.codex/bin/sevdesk-agent find-transaction "Adobe" --amount 119 --booked false --output json
+~/.codex/bin/sevdesk-agent read find-transaction --query amount=119 --query booked=false --output json
+~/.codex/bin/sevdesk-agent match-transaction --voucher-id 901 --output json
+~/.codex/bin/sevdesk-agent read match-transaction --query voucherId=901 --output json
 ```
 
 By default `read` includes:
@@ -65,6 +69,8 @@ Preflight validation runs by default for:
 - `createContact`
 - `createOrder`
 - `createInvoiceByFactory` (with invoice/delivery date checks)
+- `voucherFactorySaveVoucher`
+- `bookVoucher`
 
 Disable preflight (rare):
 ```bash
@@ -99,6 +105,45 @@ High-level invoice helpers:
   --override-position-price 0=199.00 \
   --execute \
   --verify
+```
+
+High-level voucher helpers:
+```bash
+~/.codex/bin/sevdesk-agent create-voucher-from-pdf \
+  --file /absolute/path/to/beleg.pdf \
+  --supplier-name "Adobe" \
+  --voucher-date 2026-03-10 \
+  --amount 119 \
+  --tax-type default \
+  --tax-rule-id 9 \
+  --tax-rate 19 \
+  --account-datev-id 700 \
+  --accounting-type-id 33 \
+  --execute \
+  --verify
+
+~/.codex/bin/sevdesk-agent book-voucher \
+  --voucher-id 901 \
+  --check-account-id 5 \
+  --transaction-id 100 \
+  --amount 119 \
+  --execute \
+  --verify
+
+~/.codex/bin/sevdesk-agent assign-voucher-to-transaction \
+  --voucher-id 901 \
+  --check-account-id 5 \
+  --transaction-id 100 \
+  --amount 119 \
+  --execute \
+  --verify
+```
+
+Generic multipart write:
+```bash
+~/.codex/bin/sevdesk-agent write voucherUploadFile \
+  --form-file file=/absolute/path/to/beleg.pdf \
+  --output json
 ```
 
 ## Delete call (guarded)

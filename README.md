@@ -16,6 +16,7 @@ The skill is designed for companies that want to run bookkeeping processes throu
 - Full read access across the sevdesk API through stable operation IDs
 - Write workflows for contacts, quotes, invoices, and related accounting objects
 - Reliable helper flows for contact lookup, billing contact resolution, and invoice discovery
+- Voucher intake workflows including PDF-backed voucher creation, transaction search, matching, and booking
 - Template-based invoice workflows such as installments and recurring clones
 - Safe PDF export and direct file decoding
 - Verification after writes to reduce workflow drift
@@ -28,6 +29,8 @@ The skill is designed for companies that want to run bookkeeping processes throu
 - Quote to invoice workflows
 - Installment invoice creation from existing invoices
 - Recurring invoice generation from templates
+- Incoming voucher intake from local PDFs
+- Voucher-to-bank-transaction matching and booking preparation
 - Finance backoffice automation with reproducible agent runs
 - Multi-agent bookkeeping workflows with explicit state handoff
 
@@ -99,6 +102,37 @@ export SEVDESK_API_TOKEN="..."
 ~/.codex/bin/sevdesk-agent docs invoice-finalize
 ```
 
+### Voucher intake from a local PDF
+
+```bash
+~/.codex/bin/sevdesk-agent create-voucher-from-pdf \
+  --file /absolute/path/to/adobe-march-2026.pdf \
+  --supplier-name "Adobe" \
+  --voucher-date 2026-03-10 \
+  --amount 119 \
+  --tax-type default \
+  --tax-rule-id 9 \
+  --tax-rate 19 \
+  --account-datev-id 700 \
+  --accounting-type-id 33 \
+  --execute \
+  --verify
+```
+
+### Voucher and transaction matching
+
+```bash
+~/.codex/bin/sevdesk-agent find-transaction "Adobe" --amount 119 --booked false --output json
+~/.codex/bin/sevdesk-agent match-transaction --voucher-id 901 --output json
+~/.codex/bin/sevdesk-agent assign-voucher-to-transaction \
+  --voucher-id 901 \
+  --check-account-id 5 \
+  --transaction-id 100 \
+  --amount 119 \
+  --execute \
+  --verify
+```
+
 ### Installment invoice from an existing invoice
 
 ```bash
@@ -137,6 +171,11 @@ export SEVDESK_API_TOKEN="..."
 - `~/.codex/bin/sevdesk-agent find-contact <term> ...`
 - `~/.codex/bin/sevdesk-agent resolve-billing-contact <term> ...`
 - `~/.codex/bin/sevdesk-agent find-invoice <term> ...`
+- `~/.codex/bin/sevdesk-agent find-transaction [term] ...`
+- `~/.codex/bin/sevdesk-agent match-transaction ...`
+- `~/.codex/bin/sevdesk-agent create-voucher-from-pdf ...`
+- `~/.codex/bin/sevdesk-agent book-voucher ...`
+- `~/.codex/bin/sevdesk-agent assign-voucher-to-transaction ...`
 - `~/.codex/bin/sevdesk-agent create-invoice-installment ...`
 - `~/.codex/bin/sevdesk-agent invoice clone ...`
 - `~/.codex/bin/sevdesk-agent doctor --json`
@@ -175,6 +214,7 @@ Er richtet sich an Firmen, die Buchhaltungsabläufe nicht mehr manuell in der UI
 - Vollständigen Lesezugriff auf die sevdesk-API über stabile Operation-IDs
 - Write-Workflows für Kontakte, Angebote, Rechnungen und angrenzende Buchhaltungsobjekte
 - Zuverlässige Helper-Flows für Kontaktsuche, Rechnungsempfänger-Auflösung und Rechnungssuche
+- Voucher-Workflows für PDF-Belege, Transaktionssuche, Matching und Buchung
 - Vorlagenbasierte Rechnungsabläufe wie Abschläge und wiederkehrende Klone
 - Sicheren PDF-Export mit direkter Dateiausgabe
 - Verifikation nach Writes zur Reduktion von Workflow-Drift
@@ -187,6 +227,8 @@ Er richtet sich an Firmen, die Buchhaltungsabläufe nicht mehr manuell in der UI
 - Angebot-zu-Rechnung-Workflows
 - Abschlagsrechnungen aus bestehenden Rechnungen erzeugen
 - Wiederkehrende Rechnungen aus Vorlagen erzeugen
+- Eingangsbelege als PDF in Sevdesk aufnehmen
+- Belege mit Banktransaktionen matchen und buchen
 - Backoffice-Automatisierung für Finance-Teams
 - Multi-Agent-Buchhaltungsabläufe mit explizitem Handoff
 
@@ -258,6 +300,37 @@ export SEVDESK_API_TOKEN="..."
 ~/.codex/bin/sevdesk-agent docs invoice-finalize
 ```
 
+### Beleg aus lokalem PDF anlegen
+
+```bash
+~/.codex/bin/sevdesk-agent create-voucher-from-pdf \
+  --file /absolute/path/to/adobe-march-2026.pdf \
+  --supplier-name "Adobe" \
+  --voucher-date 2026-03-10 \
+  --amount 119 \
+  --tax-type default \
+  --tax-rule-id 9 \
+  --tax-rate 19 \
+  --account-datev-id 700 \
+  --accounting-type-id 33 \
+  --execute \
+  --verify
+```
+
+### Beleg und Banktransaktion matchen
+
+```bash
+~/.codex/bin/sevdesk-agent find-transaction "Adobe" --amount 119 --booked false --output json
+~/.codex/bin/sevdesk-agent match-transaction --voucher-id 901 --output json
+~/.codex/bin/sevdesk-agent assign-voucher-to-transaction \
+  --voucher-id 901 \
+  --check-account-id 5 \
+  --transaction-id 100 \
+  --amount 119 \
+  --execute \
+  --verify
+```
+
 ### Abschlagsrechnung aus bestehender Rechnung
 
 ```bash
@@ -296,6 +369,11 @@ export SEVDESK_API_TOKEN="..."
 - `~/.codex/bin/sevdesk-agent find-contact <term> ...`
 - `~/.codex/bin/sevdesk-agent resolve-billing-contact <term> ...`
 - `~/.codex/bin/sevdesk-agent find-invoice <term> ...`
+- `~/.codex/bin/sevdesk-agent find-transaction [term] ...`
+- `~/.codex/bin/sevdesk-agent match-transaction ...`
+- `~/.codex/bin/sevdesk-agent create-voucher-from-pdf ...`
+- `~/.codex/bin/sevdesk-agent book-voucher ...`
+- `~/.codex/bin/sevdesk-agent assign-voucher-to-transaction ...`
 - `~/.codex/bin/sevdesk-agent create-invoice-installment ...`
 - `~/.codex/bin/sevdesk-agent invoice clone ...`
 - `~/.codex/bin/sevdesk-agent doctor --json`

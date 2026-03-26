@@ -350,6 +350,195 @@ function validateCreateInvoiceByFactory(
   return { errors, warnings };
 }
 
+function validateVoucherFactorySaveVoucher(body: unknown): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  const payload = asRecord(body);
+  if (!payload) {
+    return {
+      errors: ["voucherFactorySaveVoucher: request body must be an object."],
+      warnings,
+    };
+  }
+
+  const voucher = asRecord(payload.voucher);
+  if (!voucher) {
+    errors.push("voucherFactorySaveVoucher: missing required object `voucher`.");
+    return { errors, warnings };
+  }
+
+  const voucherDate = parseDateLike(voucher.voucherDate);
+  const deliveryDate = parseDateLike(voucher.deliveryDate);
+  if (!voucherDate) {
+    errors.push(
+      "voucherFactorySaveVoucher: `voucher.voucherDate` is required and must be a valid date."
+    );
+  }
+  if (!deliveryDate) {
+    errors.push(
+      "voucherFactorySaveVoucher: `voucher.deliveryDate` is required and must be a valid date."
+    );
+  }
+
+  const supplier = asRecord(voucher.supplier);
+  const supplierName = String(voucher.supplierName ?? "").trim();
+  if (!supplier && !supplierName) {
+    errors.push(
+      "voucherFactorySaveVoucher: provide either `voucher.supplier.id` or `voucher.supplierName`."
+    );
+  }
+  if (supplier && !String(supplier.id ?? "").trim()) {
+    errors.push("voucherFactorySaveVoucher: `voucher.supplier.id` is required.");
+  }
+
+  const requiredVoucherFields = [
+    "objectName",
+    "creditDebit",
+    "taxType",
+    "voucherType",
+    "currency",
+    "description",
+  ];
+  for (const field of requiredVoucherFields) {
+    if (!String(voucher[field] ?? "").trim()) {
+      errors.push(`voucherFactorySaveVoucher: \`voucher.${field}\` is required.`);
+    }
+  }
+
+  const status = toNumber(voucher.status);
+  if (status === null || ![50, 100].includes(status)) {
+    errors.push(
+      "voucherFactorySaveVoucher: `voucher.status` must be 50 (draft) or 100 (open)."
+    );
+  }
+
+  const taxRule = asRecord(voucher.taxRule);
+  if (!taxRule || !String(taxRule.id ?? "").trim()) {
+    errors.push(
+      "voucherFactorySaveVoucher: `voucher.taxRule.id` is required for sevdesk 2.0 payloads."
+    );
+  }
+
+  const voucherPosSave = payload.voucherPosSave;
+  if (!Array.isArray(voucherPosSave) || voucherPosSave.length === 0) {
+    errors.push(
+      "voucherFactorySaveVoucher: `voucherPosSave` must be a non-empty array."
+    );
+    return { errors, warnings };
+  }
+
+  for (let index = 0; index < voucherPosSave.length; index += 1) {
+    const pos = asRecord(voucherPosSave[index]);
+    if (!pos) {
+      errors.push(
+        `voucherFactorySaveVoucher: voucherPosSave[${index}] must be an object.`
+      );
+      continue;
+    }
+
+    if (!String(pos.objectName ?? "").trim()) {
+      errors.push(
+        `voucherFactorySaveVoucher: voucherPosSave[${index}].objectName is required.`
+      );
+    }
+    if (typeof pos.mapAll !== "boolean") {
+      errors.push(
+        `voucherFactorySaveVoucher: voucherPosSave[${index}].mapAll must be boolean.`
+      );
+    }
+
+    const accountDatev = asRecord(pos.accountDatev);
+    if (!accountDatev || !String(accountDatev.id ?? "").trim()) {
+      errors.push(
+        `voucherFactorySaveVoucher: voucherPosSave[${index}].accountDatev.id is required.`
+      );
+    }
+
+    const accountingType = asRecord(pos.accountingType);
+    if (!accountingType || !String(accountingType.id ?? "").trim()) {
+      errors.push(
+        `voucherFactorySaveVoucher: voucherPosSave[${index}].accountingType.id is required.`
+      );
+    }
+
+    const taxRate = toNumber(pos.taxRate);
+    if (taxRate === null || taxRate < 0) {
+      errors.push(
+        `voucherFactorySaveVoucher: voucherPosSave[${index}].taxRate must be a number >= 0.`
+      );
+    }
+    if (typeof pos.net !== "boolean") {
+      errors.push(
+        `voucherFactorySaveVoucher: voucherPosSave[${index}].net must be boolean.`
+      );
+    }
+
+    const sumNet = toNumber(pos.sumNet);
+    const sumGross = toNumber(pos.sumGross);
+    if (sumNet === null || sumNet < 0) {
+      errors.push(
+        `voucherFactorySaveVoucher: voucherPosSave[${index}].sumNet must be a number >= 0.`
+      );
+    }
+    if (sumGross === null || sumGross < 0) {
+      errors.push(
+        `voucherFactorySaveVoucher: voucherPosSave[${index}].sumGross must be a number >= 0.`
+      );
+    }
+  }
+
+  if (!String(payload.filename ?? "").trim()) {
+    warnings.push(
+      "voucherFactorySaveVoucher: `filename` is empty. This is only correct when you intentionally create a voucher without an attached file."
+    );
+  }
+
+  return { errors, warnings };
+}
+
+function validateBookVoucher(body: unknown): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  const payload = asRecord(body);
+  if (!payload) {
+    return {
+      errors: ["bookVoucher: request body must be an object."],
+      warnings,
+    };
+  }
+
+  const amount = toNumber(payload.amount);
+  if (amount === null || amount <= 0) {
+    errors.push("bookVoucher: `amount` must be a number > 0.");
+  }
+
+  if (!parseDateLike(payload.date)) {
+    errors.push(
+      "bookVoucher: `date` is required and must be a valid date (YYYY-MM-DD, DD.MM.YYYY or unix timestamp)."
+    );
+  }
+
+  if (!String(payload.type ?? "").trim()) {
+    errors.push("bookVoucher: `type` is required.");
+  }
+
+  const checkAccount = asRecord(payload.checkAccount);
+  if (!checkAccount || !String(checkAccount.id ?? "").trim()) {
+    errors.push("bookVoucher: `checkAccount.id` is required.");
+  }
+
+  const checkAccountTransaction = asRecord(payload.checkAccountTransaction);
+  if (checkAccountTransaction && !String(checkAccountTransaction.id ?? "").trim()) {
+    errors.push(
+      "bookVoucher: `checkAccountTransaction.id` is required when a transaction object is provided."
+    );
+  }
+
+  return { errors, warnings };
+}
+
 export function validateWritePreflight(
   operationId: string,
   body: unknown,
@@ -365,6 +554,14 @@ export function validateWritePreflight(
 
   if (operationId === "createInvoiceByFactory") {
     return validateCreateInvoiceByFactory(body, options);
+  }
+
+  if (operationId === "voucherFactorySaveVoucher") {
+    return validateVoucherFactorySaveVoucher(body);
+  }
+
+  if (operationId === "bookVoucher") {
+    return validateBookVoucher(body);
   }
 
   return { errors: [], warnings: [] };
