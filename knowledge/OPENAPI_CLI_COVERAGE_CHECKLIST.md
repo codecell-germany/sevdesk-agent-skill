@@ -313,12 +313,9 @@ Method split:
   Note: Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write.
 - [x] `voucherResetToOpen` (`PUT` `/Voucher/{voucherId}/resetToOpen`) -> SUPPORTED via `sevdesk-agent write voucherResetToOpen`
   Note: Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write.
-- [x] `voucherUploadFile` (`POST` `/Voucher/Factory/uploadTempFile`) -> CAVEAT via `sevdesk-agent write voucherUploadFile`
-  Note: Request body content-type is non-JSON: form-data
-  Note: CLI client always sends JSON body (Content-Type: application/json).
-  Note: Requires write guards: --execute --confirm-execute yes and SEVDESK_ALLOW_WRITE=true or --allow-write.
+- [x] `voucherUploadFile` (`POST` `/Voucher/Factory/uploadTempFile`) -> SUPPORTED via `sevdesk-agent write voucherUploadFile`
+  Note: Use multipart flags: `--form-file file=/absolute/path/to/beleg.pdf`
 
 ### VoucherPos (1)
 
 - [x] `getVoucherPositions` (`GET` `/VoucherPos`) -> SUPPORTED via `sevdesk-agent read getVoucherPositions`
-

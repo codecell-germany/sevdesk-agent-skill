@@ -8,7 +8,12 @@ export interface VerifyCheck {
 }
 
 export interface VerifySummary {
-  type: "createContact" | "createOrder" | "createInvoiceByFactory";
+  type:
+    | "createContact"
+    | "createOrder"
+    | "createInvoiceByFactory"
+    | "voucherFactorySaveVoucher"
+    | "bookVoucher";
   id: string;
   checks: VerifyCheck[];
   ok: boolean;
@@ -186,6 +191,38 @@ function expectedInvoiceTotalsFromBody(body: unknown): ExpectedInvoiceTotals | n
     net += lineNet;
     tax += lineTax;
     gross += lineGross;
+  }
+
+  return { net, tax, gross };
+}
+
+function expectedVoucherTotalsFromBody(body: unknown): ExpectedInvoiceTotals | null {
+  const payload = asRecord(body);
+  if (!payload) {
+    return null;
+  }
+
+  const positions = asArray(payload.voucherPosSave);
+  if (positions.length === 0) {
+    return null;
+  }
+
+  let net = 0;
+  let tax = 0;
+  let gross = 0;
+  for (const pos of positions) {
+    const rec = asRecord(pos);
+    if (!rec) {
+      return null;
+    }
+    const sumNet = toNumber(rec.sumNet);
+    const sumGross = toNumber(rec.sumGross);
+    if (sumNet === null || sumGross === null) {
+      return null;
+    }
+    net += sumNet;
+    gross += sumGross;
+    tax += sumGross - sumNet;
   }
 
   return { net, tax, gross };
@@ -477,6 +514,178 @@ async function verifyCreateInvoiceByFactory(
   };
 }
 
+async function verifyVoucherFactorySaveVoucher(
+  client: SevdeskClient,
+  body: unknown,
+  writeResponse: SevdeskResponse
+): Promise<VerifySummary> {
+  const voucherId =
+    extractCreatedId(writeResponse.data, ["voucher", "objects"]) ??
+    (() => {
+      throw new Error(
+        "verify(voucherFactorySaveVoucher): unable to determine created voucher id."
+      );
+    })();
+
+  const expectedVoucher = asRecord(asRecord(body)?.voucher);
+  const expectedStatus = toId(expectedVoucher?.status);
+  const expectedTaxRuleId = toId(asRecord(expectedVoucher?.taxRule)?.id);
+  const expectedSupplierId = toId(asRecord(expectedVoucher?.supplier)?.id);
+  const expectedFilename = toId(asRecord(body)?.filename);
+  const expectedPosCount = asArray(asRecord(body)?.voucherPosSave).length;
+  const expectedTotals = expectedVoucherTotalsFromBody(body);
+
+  const voucherResponse = await client.request({
+    method: "GET",
+    path: `/Voucher/${voucherId}`,
+  });
+  const voucherObject = findPrimaryObject(voucherResponse.data) ?? {};
+  const actualStatus = toId(voucherObject.status);
+  const actualTaxRuleId = toId(asRecord(voucherObject.taxRule)?.id);
+  const actualSupplierId = toId(asRecord(voucherObject.supplier)?.id);
+  const actualSumNet = toNumber(voucherObject.sumNet);
+  const actualSumTax = toNumber(voucherObject.sumTax);
+  const actualSumGross = toNumber(voucherObject.sumGross);
+  const actualDocumentId = toId(asRecord(voucherObject.document)?.id);
+
+  const positionsResponse = await client.request({
+    method: "GET",
+    path: "/VoucherPos",
+    query: {
+      "voucher[id]": voucherId,
+      "voucher[objectName]": "Voucher",
+    },
+  });
+  const actualPosCount = asArray(asRecord(positionsResponse.data)?.objects).length;
+
+  const checks: VerifyCheck[] = [];
+  checks.push({
+    check: "status",
+    ok: expectedStatus ? expectedStatus === actualStatus : actualStatus !== "",
+    detail: expectedStatus
+      ? `expected=${expectedStatus} actual=${actualStatus || "(empty)"}`
+      : `actual=${actualStatus || "(empty)"}`,
+  });
+
+  checks.push({
+    check: "taxRule",
+    ok: expectedTaxRuleId ? expectedTaxRuleId === actualTaxRuleId : actualTaxRuleId !== "",
+    detail: expectedTaxRuleId
+      ? `expected=${expectedTaxRuleId} actual=${actualTaxRuleId || "(empty)"}`
+      : `actual=${actualTaxRuleId || "(empty)"}`,
+  });
+
+  checks.push({
+    check: "supplier",
+    ok: expectedSupplierId ? expectedSupplierId === actualSupplierId : true,
+    detail: expectedSupplierId
+      ? `expected=${expectedSupplierId} actual=${actualSupplierId || "(empty)"}`
+      : `actual=${actualSupplierId || "(none)"}`,
+  });
+
+  checks.push({
+    check: "positions",
+    ok: expectedPosCount > 0 ? actualPosCount >= expectedPosCount : actualPosCount > 0,
+    detail: `expected>=${expectedPosCount} actual=${actualPosCount}`,
+  });
+
+  checks.push({
+    check: "sumNet/sumTax/sumGross",
+    ok:
+      expectedTotals === null ||
+      actualSumNet === null ||
+      actualSumTax === null ||
+      actualSumGross === null
+        ? actualSumNet !== null &&
+          actualSumTax !== null &&
+          actualSumGross !== null &&
+          actualSumGross >= actualSumNet
+        : approxEqual(expectedTotals.net, actualSumNet) &&
+          approxEqual(expectedTotals.tax, actualSumTax) &&
+          approxEqual(expectedTotals.gross, actualSumGross),
+    detail:
+      expectedTotals === null
+        ? `actualNet=${actualSumNet ?? "(n/a)"} actualTax=${actualSumTax ?? "(n/a)"} actualGross=${actualSumGross ?? "(n/a)"}`
+        : `expectedNet=${expectedTotals.net.toFixed(2)} actualNet=${actualSumNet?.toFixed(2) ?? "(n/a)"} expectedTax=${expectedTotals.tax.toFixed(2)} actualTax=${actualSumTax?.toFixed(2) ?? "(n/a)"} expectedGross=${expectedTotals.gross.toFixed(2)} actualGross=${actualSumGross?.toFixed(2) ?? "(n/a)"}`,
+  });
+
+  checks.push({
+    check: "document",
+    ok: expectedFilename ? actualDocumentId !== "" : true,
+    detail: expectedFilename
+      ? `filenameRequested=${expectedFilename} documentId=${actualDocumentId || "(empty)"}`
+      : `documentId=${actualDocumentId || "(none)"}`,
+  });
+
+  return {
+    type: "voucherFactorySaveVoucher",
+    id: voucherId,
+    checks,
+    ok: checks.every((check) => check.ok),
+  };
+}
+
+async function verifyBookVoucher(
+  client: SevdeskClient,
+  body: unknown,
+  writeResponse: SevdeskResponse
+): Promise<VerifySummary> {
+  const voucherId =
+    extractCreatedId(writeResponse.data, ["voucher", "objects"]) ??
+    (() => {
+      throw new Error("verify(bookVoucher): unable to determine voucher id.");
+    })();
+
+  const requestedAmount = toNumber(asRecord(body)?.amount);
+  const requestedTransactionId = toId(asRecord(asRecord(body)?.checkAccountTransaction)?.id);
+  const logObject = findPrimaryObject(writeResponse.data) ?? {};
+  const expectedToStatus = toId(logObject.toStatus);
+
+  const voucherResponse = await client.request({
+    method: "GET",
+    path: `/Voucher/${voucherId}`,
+  });
+  const voucherObject = findPrimaryObject(voucherResponse.data) ?? {};
+  const actualStatus = toId(voucherObject.status);
+  const actualPaidAmount = toNumber(voucherObject.paidAmount);
+
+  const checks: VerifyCheck[] = [];
+  checks.push({
+    check: "status",
+    ok: expectedToStatus ? expectedToStatus === actualStatus : actualStatus !== "",
+    detail: expectedToStatus
+      ? `expected=${expectedToStatus} actual=${actualStatus || "(empty)"}`
+      : `actual=${actualStatus || "(empty)"}`,
+  });
+
+  checks.push({
+    check: "paidAmount",
+    ok:
+      requestedAmount === null
+        ? actualPaidAmount !== null
+        : actualPaidAmount !== null && actualPaidAmount >= requestedAmount,
+    detail:
+      requestedAmount === null
+        ? `actual=${actualPaidAmount ?? "(n/a)"}`
+        : `requested>=${requestedAmount.toFixed(2)} actual=${actualPaidAmount?.toFixed(2) ?? "(n/a)"}`,
+  });
+
+  checks.push({
+    check: "transactionLinkRequested",
+    ok: true,
+    detail: requestedTransactionId
+      ? `requestedTransactionId=${requestedTransactionId}`
+      : "no transaction id requested",
+  });
+
+  return {
+    type: "bookVoucher",
+    id: voucherId,
+    checks,
+    ok: checks.every((check) => check.ok),
+  };
+}
+
 export async function runWriteVerification(options: {
   operationId: string;
   client: SevdeskClient;
@@ -497,6 +706,18 @@ export async function runWriteVerification(options: {
       options.body,
       options.writeResponse
     );
+  }
+
+  if (options.operationId === "voucherFactorySaveVoucher") {
+    return verifyVoucherFactorySaveVoucher(
+      options.client,
+      options.body,
+      options.writeResponse
+    );
+  }
+
+  if (options.operationId === "bookVoucher") {
+    return verifyBookVoucher(options.client, options.body, options.writeResponse);
   }
 
   return null;

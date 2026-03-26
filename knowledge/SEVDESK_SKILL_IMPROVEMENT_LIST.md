@@ -146,20 +146,52 @@ Den Ablauf `Kontakt anlegen -> Angebot erstellen -> PDF ausgeben` robust, reprod
 - Ziel:
   - keine `node dist/index.js ...`-Nutzung mehr in Skill-Doku und Agent-Workflows
 
-## OpenAPI Coverage Audit (2026-02-27)
+## OpenAPI Coverage Audit (2026-03-26)
 
 - Quelle: `https://api.sevdesk.de/openapi.yaml`
 - Ergebnis:
   - OpenAPI Operationen: 154
   - In CLI-Katalog vorhanden (`src/data/operations.json`): 154/154
   - Method/Path/Tag-Mismatch: 0
-- Aktueller funktionaler Caveat:
-  - `voucherUploadFile` (`POST /Voucher/Factory/uploadTempFile`) erwartet `form-data` mit Binärdatei.
-  - CLI-Client sendet derzeit nur JSON-Body (`Content-Type: application/json`).
-  - Folge: Endpoint ist im Katalog sichtbar, aber praktisch nicht nutzbar, bis Multipart/Form-Data unterstützt wird.
+- Neuer Stand:
+  - `voucherUploadFile` (`POST /Voucher/Factory/uploadTempFile`) ist jetzt im CLI auch praktisch nutzbar.
+  - Der Client unterstützt `multipart/form-data`.
+  - Low-Level-Nutzung: `sevdesk-agent write voucherUploadFile --form-file file=/absolute/path/to/beleg.pdf`
+  - High-Level-Nutzung: `sevdesk-agent create-voucher-from-pdf ...`
 - Detaillierter Einzel-Check:
   - `knowledge/OPENAPI_CLI_COVERAGE_CHECKLIST.md`
   - `knowledge/OPENAPI_CLI_COVERAGE_CHECKLIST.json`
+
+## Buchhaltungs-MVP: Belege + Transaktionen (2026-03-26)
+
+- [x] Multipart-Upload im HTTP-Client
+  - `SevdeskClient` kann jetzt `formData` senden.
+- [x] Generic multipart write support
+  - `write <operationId>` unterstützt `--form-field` und `--form-file`.
+- [x] `create-voucher-from-pdf`
+  - validiert lokale Datei
+  - dry-run standardmäßig
+  - lädt Datei bei `--execute` hoch und erzeugt den Voucher
+  - unterstützt `--verify`
+- [x] `find-transaction`
+  - serverseitige Filter + lokale Scoring-Hilfe
+- [x] `match-transaction`
+  - liest bestehenden Voucher
+  - sucht passende Transaktionen
+  - gibt Kandidaten + vorgeschlagenen `book-voucher`-Aufruf aus
+- [x] `book-voucher`
+  - dry-run standardmäßig
+  - kapselt `bookVoucher`
+  - unterstützt `--transaction-id` und `--verify`
+- [x] `assign-voucher-to-transaction`
+  - expliziter Workflowname für den Fall "Transaktion vorgeben und im selben Schritt buchen"
+  - nutzt technisch ebenfalls den Sevdesk-Booking-Endpoint
+- [x] Verify erweitert
+  - `voucherFactorySaveVoucher`
+  - `bookVoucher`
+- [x] Preflight erweitert
+  - `voucherFactorySaveVoucher`
+  - `bookVoucher`
 
 ## Workflow-Änderung: Delete-only Guard (2026-02-27)
 

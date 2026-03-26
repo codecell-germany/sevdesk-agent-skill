@@ -1,4 +1,12 @@
-import type { CliConfig, SevdeskRequest, SevdeskResponse } from "./types";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
+import type {
+  CliConfig,
+  SevdeskFormFile,
+  SevdeskRequest,
+  SevdeskResponse,
+} from "./types";
 
 function buildUrl(baseUrl: string, path: string, query: Record<string, string>) {
   const normalizedBase = baseUrl.replace(/\/$/, "");
@@ -18,6 +26,56 @@ function headersToRecord(headers: Headers): Record<string, string> {
     out[key] = value;
   });
   return out;
+}
+
+function guessContentType(filename: string): string {
+  const extension = path.extname(filename).toLowerCase();
+  switch (extension) {
+    case ".pdf":
+      return "application/pdf";
+    case ".xml":
+      return "application/xml";
+    case ".csv":
+      return "text/csv";
+    case ".zip":
+      return "application/zip";
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".png":
+      return "image/png";
+    default:
+      return "application/octet-stream";
+  }
+}
+
+function isFormFile(value: string | SevdeskFormFile): value is SevdeskFormFile {
+  return typeof value === "object" && value !== null && "filePath" in value;
+}
+
+async function buildMultipartFormData(
+  input: Record<string, string | SevdeskFormFile>
+): Promise<FormData> {
+  const formData = new FormData();
+
+  for (const [key, value] of Object.entries(input)) {
+    if (typeof value === "string") {
+      formData.append(key, value);
+      continue;
+    }
+
+    if (!isFormFile(value)) {
+      continue;
+    }
+
+    const fileBuffer = await readFile(value.filePath);
+    const filename = value.filename || path.basename(value.filePath);
+    const contentType = value.contentType || guessContentType(filename);
+    const blob = new Blob([fileBuffer], { type: contentType });
+    formData.append(key, blob, filename);
+  }
+
+  return formData;
 }
 
 async function parseResponseBody(response: Response): Promise<unknown> {
@@ -61,10 +119,16 @@ export class SevdeskClient {
       headers["X-Version"] = this.config.xVersion;
     }
 
-    let body: string | undefined;
+    if (req.body !== undefined && req.formData !== undefined) {
+      throw new Error("SevdeskClient.request: use either body or formData, not both.");
+    }
+
+    let body: BodyInit | undefined;
     if (req.body !== undefined) {
       body = JSON.stringify(req.body);
       headers["Content-Type"] = "application/json";
+    } else if (req.formData !== undefined) {
+      body = await buildMultipartFormData(req.formData);
     }
 
     const response = await fetch(url, {

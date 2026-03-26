@@ -135,6 +135,105 @@ describe("runWriteVerification", () => {
     expect(request).toHaveBeenCalledTimes(2);
   });
 
+  it("verifies voucherFactorySaveVoucher with attachment, positions and totals", async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: {},
+        data: {
+          objects: {
+            id: "901",
+            status: "50",
+            taxRule: { id: "9", objectName: "TaxRule" },
+            supplier: { id: "77", objectName: "Contact" },
+            sumNet: "100",
+            sumTax: "19",
+            sumGross: "119",
+            document: { id: "500", objectName: "Document" },
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: {},
+        data: {
+          objects: [{ id: "1" }],
+        },
+      });
+
+    const client = { request } as unknown as SevdeskClient;
+    const verification = await runWriteVerification({
+      operationId: "voucherFactorySaveVoucher",
+      client,
+      body: {
+        voucher: {
+          status: 50,
+          taxRule: { id: "9", objectName: "TaxRule" },
+          supplier: { id: "77", objectName: "Contact" },
+        },
+        voucherPosSave: [{ sumNet: 100, sumGross: 119 }],
+        filename: "hash.pdf",
+      },
+      writeResponse: {
+        ok: true,
+        status: 201,
+        headers: {},
+        data: { objects: { voucher: { id: "901" } } },
+      },
+    });
+
+    expect(verification?.type).toBe("voucherFactorySaveVoucher");
+    expect(verification?.ok).toBe(true);
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
+  it("verifies bookVoucher by checking status and paidAmount", async () => {
+    const request = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: {},
+      data: {
+        objects: {
+          id: "901",
+          status: "1000",
+          paidAmount: "119",
+        },
+      },
+    });
+
+    const client = { request } as unknown as SevdeskClient;
+    const verification = await runWriteVerification({
+      operationId: "bookVoucher",
+      client,
+      body: {
+        amount: 119,
+        checkAccount: { id: "5", objectName: "CheckAccount" },
+        checkAccountTransaction: {
+          id: "100",
+          objectName: "CheckAccountTransaction",
+        },
+      },
+      writeResponse: {
+        ok: true,
+        status: 200,
+        headers: {},
+        data: {
+          objects: {
+            voucher: { id: "901", objectName: "Voucher" },
+            toStatus: "1000",
+          },
+        },
+      },
+    });
+
+    expect(verification?.type).toBe("bookVoucher");
+    expect(verification?.ok).toBe(true);
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
   it("can auto-fix createContact customerNumber mismatch", async () => {
     const request = vi
       .fn()
