@@ -983,7 +983,7 @@ const program = new Command();
 program
   .name("sevdesk-agent")
   .description("Agent-focused sevdesk CLI (TypeScript)")
-  .version("0.1.7")
+  .version("0.1.8")
   .addHelpText(
     "after",
     [
@@ -2499,7 +2499,7 @@ program
 program.parseAsync(process.argv).catch((error) => {
   process.stderr.write(`[sevdesk-agent] ${error.message}\n`);
   process.stderr.write(
-    "[sevdesk-agent] Hint: bootstrap the local CLI shim with `npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent-skill install --force`, then run `~/.codex/bin/sevdesk-agent <command>`.\n"
+    "[sevdesk-agent] Hint: install or refresh the CLI with `npm install -g @codecell-germany/sevdesk-agent-skill`, then verify `sevdesk-agent --help`. Temporary fallback: `npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent <command>`.\n"
   );
   process.exitCode = 1;
 });

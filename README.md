@@ -36,31 +36,21 @@ The skill is designed for companies that want to run bookkeeping processes throu
 
 ## Installation
 
-### 1. Install the skill
+### 1. Install the CLI
 
 ```bash
-npx skills add codecell-germany/sevdesk-agent-skill -g --skill sevdesk-agent-cli --agent '*' -y
+npm install -g @codecell-germany/sevdesk-agent-skill
 ```
 
-### 2. Bootstrap the local CLI once
+### 2. Verify the installation
 
 ```bash
-npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent-skill install --force
+sevdesk-agent --help
 ```
 
-This installs the skill payload into `~/.codex/skills/` and the runnable CLI shim into:
-
-```bash
-~/.codex/bin/sevdesk-agent
-```
+After installation, the CLI should be available directly on your `PATH`.
 
 ### 3. Use the CLI
-
-```bash
-~/.codex/bin/sevdesk-agent --help
-```
-
-Optional: if `~/.codex/bin` is on your `PATH`, you can also use:
 
 ```bash
 sevdesk-agent --help
@@ -75,7 +65,7 @@ Requirements:
 
 ```bash
 export SEVDESK_API_TOKEN="..."
-~/.codex/bin/sevdesk-agent read bookkeepingSystemVersion --output json
+sevdesk-agent read bookkeepingSystemVersion --output json
 ```
 
 ## Workflow examples
@@ -83,29 +73,29 @@ export SEVDESK_API_TOKEN="..."
 ### Contact creation and verification
 
 ```bash
-~/.codex/bin/sevdesk-agent find-contact "Muster GmbH" --output json
-~/.codex/bin/sevdesk-agent read resolve-billing-contact --query term="Muster GmbH" --output json
-~/.codex/bin/sevdesk-agent write createContact --body-file payloads/contact.create.json --verify-contact
+sevdesk-agent find-contact "Muster GmbH" --output json
+sevdesk-agent read resolve-billing-contact --query term="Muster GmbH" --output json
+sevdesk-agent write createContact --body-file payloads/contact.create.json --verify-contact
 ```
 
 ### Quote creation and PDF export
 
 ```bash
-~/.codex/bin/sevdesk-agent write createOrder --body-file payloads/order.create.json --verify
-~/.codex/bin/sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer-12345.pdf --suppress-content --output json
+sevdesk-agent write createOrder --body-file payloads/order.create.json --verify
+sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer-12345.pdf --suppress-content --output json
 ```
 
 ### Invoice creation
 
 ```bash
-~/.codex/bin/sevdesk-agent write createInvoiceByFactory --body-file payloads/invoice.create.json --verify
-~/.codex/bin/sevdesk-agent docs invoice-finalize
+sevdesk-agent write createInvoiceByFactory --body-file payloads/invoice.create.json --verify
+sevdesk-agent docs invoice-finalize
 ```
 
 ### Voucher intake from a local PDF
 
 ```bash
-~/.codex/bin/sevdesk-agent create-voucher-from-pdf \
+sevdesk-agent create-voucher-from-pdf \
   --file /absolute/path/to/adobe-march-2026.pdf \
   --supplier-name "Adobe" \
   --voucher-date 2026-03-10 \
@@ -122,9 +112,9 @@ export SEVDESK_API_TOKEN="..."
 ### Voucher and transaction matching
 
 ```bash
-~/.codex/bin/sevdesk-agent find-transaction "Adobe" --amount 119 --booked false --output json
-~/.codex/bin/sevdesk-agent match-transaction --voucher-id 901 --output json
-~/.codex/bin/sevdesk-agent assign-voucher-to-transaction \
+sevdesk-agent find-transaction "Adobe" --amount 119 --booked false --output json
+sevdesk-agent match-transaction --voucher-id 901 --output json
+sevdesk-agent assign-voucher-to-transaction \
   --voucher-id 901 \
   --check-account-id 5 \
   --transaction-id 100 \
@@ -136,7 +126,7 @@ export SEVDESK_API_TOKEN="..."
 ### Installment invoice from an existing invoice
 
 ```bash
-~/.codex/bin/sevdesk-agent create-invoice-installment \
+sevdesk-agent create-invoice-installment \
   --from-invoice 12345 \
   --percent 70 \
   --label "Installment Phase 2" \
@@ -147,7 +137,7 @@ export SEVDESK_API_TOKEN="..."
 ### Recurring invoice clone
 
 ```bash
-~/.codex/bin/sevdesk-agent invoice clone \
+sevdesk-agent invoice clone \
   --from 12345 \
   --period monthly \
   --override-position-price 0=199.00 \
@@ -158,28 +148,28 @@ export SEVDESK_API_TOKEN="..."
 ### Invoice search across headers and positions
 
 ```bash
-~/.codex/bin/sevdesk-agent find-invoice "acf" --deep-scan --output json
-~/.codex/bin/sevdesk-agent read find-invoice --query term="acf" --query deepScan=true --output json
+sevdesk-agent find-invoice "acf" --deep-scan --output json
+sevdesk-agent read find-invoice --query term="acf" --query deepScan=true --output json
 ```
 
 ## CLI overview
 
-- `~/.codex/bin/sevdesk-agent ops list --read-only`
-- `~/.codex/bin/sevdesk-agent op-show <operationId>`
-- `~/.codex/bin/sevdesk-agent read <operationId> ...`
-- `~/.codex/bin/sevdesk-agent write <operationId> ...`
-- `~/.codex/bin/sevdesk-agent find-contact <term> ...`
-- `~/.codex/bin/sevdesk-agent resolve-billing-contact <term> ...`
-- `~/.codex/bin/sevdesk-agent find-invoice <term> ...`
-- `~/.codex/bin/sevdesk-agent find-transaction [term] ...`
-- `~/.codex/bin/sevdesk-agent match-transaction ...`
-- `~/.codex/bin/sevdesk-agent create-voucher-from-pdf ...`
-- `~/.codex/bin/sevdesk-agent book-voucher ...`
-- `~/.codex/bin/sevdesk-agent assign-voucher-to-transaction ...`
-- `~/.codex/bin/sevdesk-agent create-invoice-installment ...`
-- `~/.codex/bin/sevdesk-agent invoice clone ...`
-- `~/.codex/bin/sevdesk-agent doctor --json`
-- `~/.codex/bin/sevdesk-agent context snapshot ...`
+- `sevdesk-agent ops list --read-only`
+- `sevdesk-agent op-show <operationId>`
+- `sevdesk-agent read <operationId> ...`
+- `sevdesk-agent write <operationId> ...`
+- `sevdesk-agent find-contact <term> ...`
+- `sevdesk-agent resolve-billing-contact <term> ...`
+- `sevdesk-agent find-invoice <term> ...`
+- `sevdesk-agent find-transaction [term] ...`
+- `sevdesk-agent match-transaction ...`
+- `sevdesk-agent create-voucher-from-pdf ...`
+- `sevdesk-agent book-voucher ...`
+- `sevdesk-agent assign-voucher-to-transaction ...`
+- `sevdesk-agent create-invoice-installment ...`
+- `sevdesk-agent invoice clone ...`
+- `sevdesk-agent doctor --json`
+- `sevdesk-agent context snapshot ...`
 
 ## Project structure
 
@@ -234,31 +224,21 @@ Er richtet sich an Firmen, die Buchhaltungsabläufe nicht mehr manuell in der UI
 
 ## Installation
 
-### 1. Skill installieren
+### 1. CLI installieren
 
 ```bash
-npx skills add codecell-germany/sevdesk-agent-skill -g --skill sevdesk-agent-cli --agent '*' -y
+npm install -g @codecell-germany/sevdesk-agent-skill
 ```
 
-### 2. Lokales CLI einmal bootstrapen
+### 2. Installation prüfen
 
 ```bash
-npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent-skill install --force
+sevdesk-agent --help
 ```
 
-Dadurch wird der Skill nach `~/.codex/skills/` installiert und der ausführbare CLI-Shim nach:
-
-```bash
-~/.codex/bin/sevdesk-agent
-```
+Nach der Installation sollte das CLI direkt auf deinem `PATH` verfügbar sein.
 
 ### 3. CLI verwenden
-
-```bash
-~/.codex/bin/sevdesk-agent --help
-```
-
-Optional: wenn `~/.codex/bin` auf deinem `PATH` liegt, funktioniert auch:
 
 ```bash
 sevdesk-agent --help
@@ -273,7 +253,7 @@ Voraussetzungen:
 
 ```bash
 export SEVDESK_API_TOKEN="..."
-~/.codex/bin/sevdesk-agent read bookkeepingSystemVersion --output json
+sevdesk-agent read bookkeepingSystemVersion --output json
 ```
 
 ## Workflow-Beispiele
@@ -281,29 +261,29 @@ export SEVDESK_API_TOKEN="..."
 ### Kontakt anlegen und verifizieren
 
 ```bash
-~/.codex/bin/sevdesk-agent find-contact "Muster GmbH" --output json
-~/.codex/bin/sevdesk-agent read resolve-billing-contact --query term="Muster GmbH" --output json
-~/.codex/bin/sevdesk-agent write createContact --body-file payloads/contact.create.json --verify-contact
+sevdesk-agent find-contact "Muster GmbH" --output json
+sevdesk-agent read resolve-billing-contact --query term="Muster GmbH" --output json
+sevdesk-agent write createContact --body-file payloads/contact.create.json --verify-contact
 ```
 
 ### Angebot erstellen und PDF exportieren
 
 ```bash
-~/.codex/bin/sevdesk-agent write createOrder --body-file payloads/order.create.json --verify
-~/.codex/bin/sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer-12345.pdf --suppress-content --output json
+sevdesk-agent write createOrder --body-file payloads/order.create.json --verify
+sevdesk-agent read orderGetPdf --path orderId=12345 --decode-pdf output/offer-12345.pdf --suppress-content --output json
 ```
 
 ### Rechnung erstellen
 
 ```bash
-~/.codex/bin/sevdesk-agent write createInvoiceByFactory --body-file payloads/invoice.create.json --verify
-~/.codex/bin/sevdesk-agent docs invoice-finalize
+sevdesk-agent write createInvoiceByFactory --body-file payloads/invoice.create.json --verify
+sevdesk-agent docs invoice-finalize
 ```
 
 ### Beleg aus lokalem PDF anlegen
 
 ```bash
-~/.codex/bin/sevdesk-agent create-voucher-from-pdf \
+sevdesk-agent create-voucher-from-pdf \
   --file /absolute/path/to/adobe-march-2026.pdf \
   --supplier-name "Adobe" \
   --voucher-date 2026-03-10 \
@@ -320,9 +300,9 @@ export SEVDESK_API_TOKEN="..."
 ### Beleg und Banktransaktion matchen
 
 ```bash
-~/.codex/bin/sevdesk-agent find-transaction "Adobe" --amount 119 --booked false --output json
-~/.codex/bin/sevdesk-agent match-transaction --voucher-id 901 --output json
-~/.codex/bin/sevdesk-agent assign-voucher-to-transaction \
+sevdesk-agent find-transaction "Adobe" --amount 119 --booked false --output json
+sevdesk-agent match-transaction --voucher-id 901 --output json
+sevdesk-agent assign-voucher-to-transaction \
   --voucher-id 901 \
   --check-account-id 5 \
   --transaction-id 100 \
@@ -334,7 +314,7 @@ export SEVDESK_API_TOKEN="..."
 ### Abschlagsrechnung aus bestehender Rechnung
 
 ```bash
-~/.codex/bin/sevdesk-agent create-invoice-installment \
+sevdesk-agent create-invoice-installment \
   --from-invoice 12345 \
   --percent 70 \
   --label "Abschlag Phase 2" \
@@ -345,7 +325,7 @@ export SEVDESK_API_TOKEN="..."
 ### Wiederkehrende Rechnung klonen
 
 ```bash
-~/.codex/bin/sevdesk-agent invoice clone \
+sevdesk-agent invoice clone \
   --from 12345 \
   --period monthly \
   --override-position-price 0=199.00 \
@@ -356,28 +336,28 @@ export SEVDESK_API_TOKEN="..."
 ### Rechnungssuche über Header und Positionen
 
 ```bash
-~/.codex/bin/sevdesk-agent find-invoice "acf" --deep-scan --output json
-~/.codex/bin/sevdesk-agent read find-invoice --query term="acf" --query deepScan=true --output json
+sevdesk-agent find-invoice "acf" --deep-scan --output json
+sevdesk-agent read find-invoice --query term="acf" --query deepScan=true --output json
 ```
 
 ## CLI-Überblick
 
-- `~/.codex/bin/sevdesk-agent ops list --read-only`
-- `~/.codex/bin/sevdesk-agent op-show <operationId>`
-- `~/.codex/bin/sevdesk-agent read <operationId> ...`
-- `~/.codex/bin/sevdesk-agent write <operationId> ...`
-- `~/.codex/bin/sevdesk-agent find-contact <term> ...`
-- `~/.codex/bin/sevdesk-agent resolve-billing-contact <term> ...`
-- `~/.codex/bin/sevdesk-agent find-invoice <term> ...`
-- `~/.codex/bin/sevdesk-agent find-transaction [term] ...`
-- `~/.codex/bin/sevdesk-agent match-transaction ...`
-- `~/.codex/bin/sevdesk-agent create-voucher-from-pdf ...`
-- `~/.codex/bin/sevdesk-agent book-voucher ...`
-- `~/.codex/bin/sevdesk-agent assign-voucher-to-transaction ...`
-- `~/.codex/bin/sevdesk-agent create-invoice-installment ...`
-- `~/.codex/bin/sevdesk-agent invoice clone ...`
-- `~/.codex/bin/sevdesk-agent doctor --json`
-- `~/.codex/bin/sevdesk-agent context snapshot ...`
+- `sevdesk-agent ops list --read-only`
+- `sevdesk-agent op-show <operationId>`
+- `sevdesk-agent read <operationId> ...`
+- `sevdesk-agent write <operationId> ...`
+- `sevdesk-agent find-contact <term> ...`
+- `sevdesk-agent resolve-billing-contact <term> ...`
+- `sevdesk-agent find-invoice <term> ...`
+- `sevdesk-agent find-transaction [term] ...`
+- `sevdesk-agent match-transaction ...`
+- `sevdesk-agent create-voucher-from-pdf ...`
+- `sevdesk-agent book-voucher ...`
+- `sevdesk-agent assign-voucher-to-transaction ...`
+- `sevdesk-agent create-invoice-installment ...`
+- `sevdesk-agent invoice clone ...`
+- `sevdesk-agent doctor --json`
+- `sevdesk-agent context snapshot ...`
 
 ## Projektstruktur
 

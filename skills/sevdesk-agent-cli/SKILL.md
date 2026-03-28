@@ -12,13 +12,15 @@ Use this skill when tasks involve sevdesk API access from this workspace, especi
 - produce a context snapshot for later agent runs.
 
 ## Preconditions
-- Bootstrap the local CLI shim once per machine:
-  - `npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent-skill install --force`
-- After bootstrap, use the installed CLI path:
-  - `~/.codex/bin/sevdesk-agent --help`
-- Optional:
-  - if `~/.codex/bin` is on `PATH`, plain `sevdesk-agent ...` also works
-  - without bootstrap, the immediate fallback is still the npm runner: `npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent --help`
+- Ensure the CLI is globally available on `PATH` once per machine:
+  - preferred: `npm install -g @codecell-germany/sevdesk-agent-skill`
+  - Codex bootstrap helper: `npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent-skill install --force`
+  - verify: `sevdesk-agent --help`
+- If `sevdesk-agent` is still not found after install:
+  - check the npm global prefix: `npm config get prefix`
+  - add `<prefix>/bin` to `PATH` for the current shell if needed
+- Temporary fallback without global install:
+  - `npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent --help`
 - API token is available in env:
   - `SEVDESK_API_TOKEN=<token>`
 - Optional env:
@@ -28,68 +30,68 @@ Use this skill when tasks involve sevdesk API access from this workspace, especi
 
 ## Core workflow
 1. Discover operation ids:
-   - `~/.codex/bin/sevdesk-agent ops list --read-only`
-   - `~/.codex/bin/sevdesk-agent op-show <operationId>`
-   - `~/.codex/bin/sevdesk-agent ops-quirks`
-   - stable parser output: `~/.codex/bin/sevdesk-agent ops-quirks --json-array`
+   - `sevdesk-agent ops list --read-only`
+   - `sevdesk-agent op-show <operationId>`
+   - `sevdesk-agent ops-quirks`
+   - stable parser output: `sevdesk-agent ops-quirks --json-array`
 2. Run read calls first:
-   - `~/.codex/bin/sevdesk-agent read <operationId> --query key=value`
-   - `~/.codex/bin/sevdesk-agent read find-contact --query term="<name>" --output json` (alias for top-level find-contact)
-   - `~/.codex/bin/sevdesk-agent read resolve-billing-contact --query term="<name>" --output json` (alias for helper command)
-   - `~/.codex/bin/sevdesk-agent read find-invoice --query term="<text>" --query deepScan=true --output json` (alias for helper command)
-   - `~/.codex/bin/sevdesk-agent read find-transaction --query amount=119 --query booked=false --output json` (alias for helper command)
-   - `~/.codex/bin/sevdesk-agent read match-transaction --query voucherId=<id> --output json` (alias for helper command)
-   - local contact search helper: `~/.codex/bin/sevdesk-agent find-contact <term> --output json`
-   - billing helper: `~/.codex/bin/sevdesk-agent resolve-billing-contact <term> --output json`
-   - invoice text search: `~/.codex/bin/sevdesk-agent find-invoice <term> --deep-scan --output json`
-   - transaction search: `~/.codex/bin/sevdesk-agent find-transaction "<text>" --amount <n> --booked false --output json`
-   - voucher-to-transaction matching: `~/.codex/bin/sevdesk-agent match-transaction --voucher-id <id> --output json`
+   - `sevdesk-agent read <operationId> --query key=value`
+   - `sevdesk-agent read find-contact --query term="<name>" --output json` (alias for top-level find-contact)
+   - `sevdesk-agent read resolve-billing-contact --query term="<name>" --output json` (alias for helper command)
+   - `sevdesk-agent read find-invoice --query term="<text>" --query deepScan=true --output json` (alias for helper command)
+   - `sevdesk-agent read find-transaction --query amount=119 --query booked=false --output json` (alias for helper command)
+   - `sevdesk-agent read match-transaction --query voucherId=<id> --output json` (alias for helper command)
+   - local contact search helper: `sevdesk-agent find-contact <term> --output json`
+   - billing helper: `sevdesk-agent resolve-billing-contact <term> --output json`
+   - invoice text search: `sevdesk-agent find-invoice <term> --deep-scan --output json`
+   - transaction search: `sevdesk-agent find-transaction "<text>" --amount <n> --booked false --output json`
+   - voucher-to-transaction matching: `sevdesk-agent match-transaction --voucher-id <id> --output json`
    - by default, read responses are normalized for known live API quirks
    - Shell quoting: params like `contact[id]` should be quoted: `--query 'contact[id]=123'`
    - Invoice date filters (observed): in our tests, `getInvoices` works with `startDate`/`endDate` as Unix timestamps (seconds). ISO dates like `2026-01-01` may return empty results.
-      Example: `~/.codex/bin/sevdesk-agent read getInvoices --query startDate=1767225600 --query endDate=1769903999 --output json`
-   - Generate a full read-op reference doc: `~/.codex/bin/sevdesk-agent docs read-ops --output knowledge/READ_OPERATIONS.md`
+      Example: `sevdesk-agent read getInvoices --query startDate=1767225600 --query endDate=1769903999 --output json`
+   - Generate a full read-op reference doc: `sevdesk-agent docs read-ops --output knowledge/READ_OPERATIONS.md`
 3. For write calls:
-   - `POST` / `PUT` / `PATCH`: `~/.codex/bin/sevdesk-agent write <operationId> ...`
+   - `POST` / `PUT` / `PATCH`: `sevdesk-agent write <operationId> ...`
    - multipart writes are available with `--form-field key=value` and `--form-file file=/path/to/file`
-   - `DELETE`: `~/.codex/bin/sevdesk-agent write <operationId> --execute --confirm-execute yes --allow-write ...`
+   - `DELETE`: `sevdesk-agent write <operationId> --execute --confirm-execute yes --allow-write ...`
    - for `createContact` / `createOrder`, local preflight validation runs by default
    - for `createInvoiceByFactory`, preflight also validates invoice/delivery date consistency (`--auto-fix-delivery-date` available)
    - for `voucherFactorySaveVoucher` and `bookVoucher`, local preflight validates the high-risk accounting fields before the API call
    - add `--verify` to run read-only post-write checks (including `createInvoiceByFactory`, `voucherFactorySaveVoucher` and `bookVoucher`)
    - for createContact workflows, prefer `--verify-contact` (includes customerNumber mismatch checks; auto-fix enabled by default and can be disabled via `--no-fix-contact`)
 4. Persist agent handoff context:
-   - stdout (default): `~/.codex/bin/sevdesk-agent context snapshot`
-   - optional file export: `~/.codex/bin/sevdesk-agent context snapshot --output .context/sevdesk-context-snapshot.json`
+   - stdout (default): `sevdesk-agent context snapshot`
+   - optional file export: `sevdesk-agent context snapshot --output .context/sevdesk-context-snapshot.json`
 
 ## Standard runbook: Kontakt + Angebot + PDF
 1. Discovery:
-   - `~/.codex/bin/sevdesk-agent ops list --read-only`
-   - `~/.codex/bin/sevdesk-agent op-show createContact`
-   - `~/.codex/bin/sevdesk-agent op-show createOrder`
+   - `sevdesk-agent ops list --read-only`
+   - `sevdesk-agent op-show createContact`
+   - `sevdesk-agent op-show createOrder`
 2. Kontakt finden/erstellen:
-   - `~/.codex/bin/sevdesk-agent find-contact "<name or customerNumber>" --output json`
-   - `~/.codex/bin/sevdesk-agent write createContact ... --verify-contact`
+   - `sevdesk-agent find-contact "<name or customerNumber>" --output json`
+   - `sevdesk-agent write createContact ... --verify-contact`
 3. Angebot erstellen:
-   - `~/.codex/bin/sevdesk-agent write createOrder ... --verify`
+   - `sevdesk-agent write createOrder ... --verify`
 4. PDF export ohne Status-Nebeneffekt:
-   - `~/.codex/bin/sevdesk-agent read orderGetPdf --path orderId=<id> --decode-pdf output/<file>.pdf --suppress-content`
+   - `sevdesk-agent read orderGetPdf --path orderId=<id> --decode-pdf output/<file>.pdf --suppress-content`
    - `preventSendBy=1` wird standardmäßig gesetzt (`--no-safe-pdf` deaktiviert das)
 5. Handoff:
-   - `~/.codex/bin/sevdesk-agent context snapshot --include-default`
+   - `sevdesk-agent context snapshot --include-default`
 
 ## Additional invoice helpers
 - Installment from existing invoice:
-  - `~/.codex/bin/sevdesk-agent create-invoice-installment --from-invoice <id> --percent 70 --label "..." [--execute --verify]`
+  - `sevdesk-agent create-invoice-installment --from-invoice <id> --percent 70 --label "..." [--execute --verify]`
 - Clone invoice for recurring workflows:
-  - `~/.codex/bin/sevdesk-agent invoice clone --from <id> --date <...> --period <...> with selective position overrides`
+  - `sevdesk-agent invoice clone --from <id> --date <...> --period <...> with selective position overrides`
 - Voucher intake from local PDF:
-  - `~/.codex/bin/sevdesk-agent create-voucher-from-pdf --file /absolute/path/to/beleg.pdf ... [--execute --verify]`
+  - `sevdesk-agent create-voucher-from-pdf --file /absolute/path/to/beleg.pdf ... [--execute --verify]`
 - Voucher booking helpers:
-  - `~/.codex/bin/sevdesk-agent book-voucher --voucher-id <id> --check-account-id <id> --amount <n> [--transaction-id <id>] [--execute --verify]`
-  - `~/.codex/bin/sevdesk-agent assign-voucher-to-transaction --voucher-id <id> --check-account-id <id> --transaction-id <id> --amount <n> [--execute --verify]`
+  - `sevdesk-agent book-voucher --voucher-id <id> --check-account-id <id> --amount <n> [--transaction-id <id>] [--execute --verify]`
+  - `sevdesk-agent assign-voucher-to-transaction --voucher-id <id> --check-account-id <id> --transaction-id <id> --amount <n> [--execute --verify]`
 - Self-check and command sync:
-  - `~/.codex/bin/sevdesk-agent doctor --json`
+  - `sevdesk-agent doctor --json`
 
 ## Guardrails
 - Default behavior is workflow-friendly: `POST`/`PUT`/`PATCH` run directly; `DELETE` is blocked unless guard flags are set.
@@ -103,8 +105,8 @@ Use this skill when tasks involve sevdesk API access from this workspace, especi
 - Runtime-required query quirks are enforced for selected operations (e.g. `contactCustomerNumberAvailabilityCheck` requires `customerNumber` at runtime).
 - Use `op-show` or `ops-quirks` to see operation-specific runtime quirks.
 - `ops-quirks --json` returns an object mapping; for stable array parsing use `ops-quirks --json-array`.
-- if you need invoice mutation guidance and `updateInvoice` is missing, run `~/.codex/bin/sevdesk-agent docs invoice-edit`.
-- for numbering/finalization sequence after invoice creation, run `~/.codex/bin/sevdesk-agent docs invoice-finalize`.
+- if you need invoice mutation guidance and `updateInvoice` is missing, run `sevdesk-agent docs invoice-edit`.
+- for numbering/finalization sequence after invoice creation, run `sevdesk-agent docs invoice-finalize`.
 
 ## References
 - Command cheat sheet: `references/command-cheatsheet.md`

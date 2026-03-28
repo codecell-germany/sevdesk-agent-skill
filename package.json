@@ -1,6 +1,6 @@
 {
   "name": "@codecell-germany/sevdesk-agent-skill",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": false,
   "description": "Agent-focused sevdesk CLI in TypeScript",
   "license": "MIT",
@@ -22,7 +22,15 @@
   "files": [
     "dist/**",
     "skills/**",
-    "knowledge/**",
+    "knowledge/OPENAPI_CLI_COVERAGE_CHECKLIST.json",
+    "knowledge/OPENAPI_CLI_COVERAGE_CHECKLIST.md",
+    "knowledge/READ_OPERATIONS.md",
+    "knowledge/SEVDESK_ACCOUNTING_AUTOMATION_CONCEPT.md",
+    "knowledge/SEVDESK_BREAKING_CHANGES.md",
+    "knowledge/SEVDESK_MINIMAL_CALL_WORKFLOW.md",
+    "knowledge/SEVDESK_ORDER_WRITE_LEARNINGS.md",
+    "knowledge/SEVDESK_SKILL_IMPROVEMENT_LIST.md",
+    "knowledge/SKILL_PUBLISHING_GUIDE.md",
     "OPERATIONS.md",
     "README.md",
     "LICENSE"

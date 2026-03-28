@@ -35,6 +35,31 @@ export function getInstalledCliShim(codexHome: string): string {
   return path.join(getCodexBinDir(codexHome), "sevdesk-agent");
 }
 
+export function buildGlobalCliPackageSpec(packageName: string, version: string): string {
+  const normalizedName = packageName.trim();
+  const normalizedVersion = version.trim();
+  return normalizedVersion ? `${normalizedName}@${normalizedVersion}` : normalizedName;
+}
+
+export function normalizeCliVersion(raw: string | undefined | null): string {
+  return String(raw ?? "")
+    .trim()
+    .replace(/^v/i, "");
+}
+
+export function isInstalledCliVersion(
+  actual: string | undefined | null,
+  expected: string | undefined | null
+): boolean {
+  const normalizedActual = normalizeCliVersion(actual);
+  const normalizedExpected = normalizeCliVersion(expected);
+  return normalizedActual !== "" && normalizedActual === normalizedExpected;
+}
+
+export function getGlobalNpmBinDir(prefix: string): string {
+  return process.platform === "win32" ? path.resolve(prefix) : path.join(path.resolve(prefix), "bin");
+}
+
 export function renderCliShim(entryPath: string): string {
   return [
     "#!/usr/bin/env sh",
