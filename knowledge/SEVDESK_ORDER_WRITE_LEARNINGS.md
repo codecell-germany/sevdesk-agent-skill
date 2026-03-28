@@ -114,9 +114,9 @@ Recommendation:
 
 ### CLI bootstrap
 - Standard command path for agent runs:
-  - `~/.codex/bin/sevdesk-agent <command> ...`
-- Bootstrap once per machine if the shim is missing:
-  - `npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent-skill install --force`
+  - `sevdesk-agent <command> ...`
+- CLI einmal pro Maschine global installieren:
+  - `npm install -g @codecell-germany/sevdesk-agent-skill`
 
 ## 7. Standard process (must-use) for "new contact + new offer"
 
@@ -179,9 +179,9 @@ The following workflow hardening is now built into the CLI:
 - `read orderGetPdf|invoiceGetPdf --decode-pdf output/file.pdf` writes a usable PDF directly.
 
 6. Startup bootstrap
-- If the local shim is missing, CLI docs and error output suggest:
-  - `npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent-skill install --force`
-  - then use `~/.codex/bin/sevdesk-agent <command> ...`
+- If the global CLI is missing, CLI docs and error output now suggest:
+  - `npm install -g @codecell-germany/sevdesk-agent-skill`
+  - then use `sevdesk-agent <command> ...`
 
 7. Stable quirks JSON for parser workflows
 - `ops-quirks --json` keeps object-mapping compatibility.

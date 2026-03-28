@@ -2,13 +2,17 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  buildGlobalCliPackageSpec,
   getCodexBinDir,
   getCodexToolDir,
+  getGlobalNpmBinDir,
   getInstalledCliDistDir,
   getInstalledCliEntry,
   getInstalledCliNodeModulesDir,
   getInstalledCliShim,
   getTargetSkillDir,
+  isInstalledCliVersion,
+  normalizeCliVersion,
   pathContainsDir,
   renderCliShim,
   resolveCodexHome,
@@ -54,5 +58,23 @@ describe("skill install helpers", () => {
     const pathValue = ["/usr/local/bin", "/tmp/codex/bin", "/usr/bin"].join(path.delimiter);
     expect(pathContainsDir(pathValue, "/tmp/codex/bin")).toBe(true);
     expect(pathContainsDir(pathValue, "/tmp/codex/other")).toBe(false);
+  });
+
+  it("builds an exact global install package spec", () => {
+    expect(
+      buildGlobalCliPackageSpec("@codecell-germany/sevdesk-agent-skill", "0.1.8")
+    ).toBe("@codecell-germany/sevdesk-agent-skill@0.1.8");
+  });
+
+  it("normalizes and compares CLI versions", () => {
+    expect(normalizeCliVersion("v0.1.8")).toBe("0.1.8");
+    expect(isInstalledCliVersion("v0.1.8", "0.1.8")).toBe(true);
+    expect(isInstalledCliVersion("0.1.7", "0.1.8")).toBe(false);
+  });
+
+  it("derives the npm global bin directory from a prefix", () => {
+    expect(getGlobalNpmBinDir("/opt/homebrew")).toBe(
+      process.platform === "win32" ? path.resolve("/opt/homebrew") : "/opt/homebrew/bin"
+    );
   });
 });

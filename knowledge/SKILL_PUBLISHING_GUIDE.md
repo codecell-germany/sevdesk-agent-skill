@@ -10,7 +10,7 @@ Additionally, the skills.sh ecosystem supports installing skills directly from G
    - optional: `skills/<skill-name>/references/**`, `skills/<skill-name>/agents/**`
 2. A CLI that agents can run:
    - published binary via npm package `bin` (works with `npx -p <pkg> <bin> ...`)
-3. An installer CLI that copies the skill payload into `~/.codex/skills/<skill-name>` and a persistent CLI shim into `~/.codex/bin/<cli-bin>`:
+3. An installer CLI that copies the skill payload into `~/.codex/skills/<skill-name>` and can additionally ensure a globally available CLI on `PATH`:
    - published binary via npm package `bin` (works with `npx <pkg> install`)
 
 ## Repo Layout (Recommended)
@@ -88,7 +88,7 @@ Run all of these from a clean state:
 
 1. Ensure README has:
    - quick start
-   - npx installation examples
+   - global CLI installation examples (`npm install -g ...`)
    - command overview (short list)
    - agent installation instructions
 1. Ensure docs are consistent and regenerated if generated:
@@ -118,8 +118,8 @@ skills.sh does not require a separate publish step. A repo becomes discoverable 
 1. Verify:
    - `npm view <pkg> version`
    - `TMP=$(mktemp -d) && cd "$TMP" && npx -y <pkg> --help`
+   - `TMP=$(mktemp -d) && cd "$TMP" && npm install -g <pkg> && <cli-bin> --help`
    - `TMP=$(mktemp -d) && cd "$TMP" && npx -y <pkg> install --codex-home "$TMP/codex"`
-   - `TMP=$(mktemp -d) && "$TMP/codex/bin/<cli-bin>" --help`
 
 ## Post-Publish "Reality Checks"
 
