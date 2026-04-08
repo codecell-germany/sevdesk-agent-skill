@@ -11,3 +11,6 @@ Plans/
 *.log
 *.tmp
 *.tgz
+
+# Local generated artifacts
+output/
