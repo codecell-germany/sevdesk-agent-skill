@@ -225,6 +225,154 @@ function validateCreateOrder(body: unknown): ValidationResult {
   return { errors, warnings };
 }
 
+function validateUpdateContact(body: unknown): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  const contact = asRecord(body);
+  if (!contact) {
+    return {
+      errors: ["updateContact: request body must be an object."],
+      warnings,
+    };
+  }
+
+  if (Object.keys(contact).length === 0) {
+    errors.push("updateContact: request body must contain at least one editable field.");
+  }
+
+  if (Object.prototype.hasOwnProperty.call(contact, "parent")) {
+    const parent = contact.parent;
+    if (parent !== null) {
+      const parentRecord = asRecord(parent);
+      if (!parentRecord) {
+        errors.push(
+          "updateContact: `parent` must be null or an object with `id` and `objectName`."
+        );
+      } else {
+        if (!String(parentRecord.id ?? "").trim()) {
+          errors.push("updateContact: `parent.id` is required when parent is set.");
+        }
+        if (!String(parentRecord.objectName ?? "").trim()) {
+          errors.push(
+            "updateContact: `parent.objectName` is required when parent is set."
+          );
+        }
+      }
+    }
+  }
+
+  return { errors, warnings };
+}
+
+function validateUpdateContactAddress(body: unknown): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  const address = asRecord(body);
+  if (!address) {
+    return {
+      errors: ["updateContactAddress: request body must be an object."],
+      warnings,
+    };
+  }
+
+  if (Object.keys(address).length === 0) {
+    errors.push(
+      "updateContactAddress: request body must contain at least one editable field."
+    );
+  }
+
+  for (const [field, objectName] of [
+    ["contact", "Contact"],
+    ["country", "StaticCountry"],
+    ["category", "Category"],
+  ] as const) {
+    if (!Object.prototype.hasOwnProperty.call(address, field)) {
+      continue;
+    }
+    const nested = asRecord(address[field]);
+    if (!nested) {
+      errors.push(
+        `updateContactAddress: \`${field}\` must be an object with \`id\` and \`objectName\`.`
+      );
+      continue;
+    }
+    if (!String(nested.id ?? "").trim()) {
+      errors.push(`updateContactAddress: \`${field}.id\` is required.`);
+    }
+    if (!String(nested.objectName ?? "").trim()) {
+      errors.push(`updateContactAddress: \`${field}.objectName\` is required.`);
+    } else if (String(nested.objectName) !== objectName) {
+      warnings.push(
+        `updateContactAddress: expected \`${field}.objectName\` to be \`${objectName}\`.`
+      );
+    }
+  }
+
+  return { errors, warnings };
+}
+
+function validateUpdateOrder(body: unknown): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  const order = asRecord(body);
+  if (!order) {
+    return {
+      errors: ["updateOrder: request body must be an object."],
+      warnings,
+    };
+  }
+
+  if (Object.keys(order).length === 0) {
+    errors.push("updateOrder: request body must contain at least one editable field.");
+  }
+
+  if (Object.prototype.hasOwnProperty.call(order, "contact")) {
+    const contact = asRecord(order.contact);
+    if (!contact) {
+      errors.push("updateOrder: `contact` must be an object with `id` and `objectName`.");
+    } else {
+      if (!String(contact.id ?? "").trim()) {
+        errors.push("updateOrder: `contact.id` is required.");
+      }
+      if (!String(contact.objectName ?? "").trim()) {
+        errors.push("updateOrder: `contact.objectName` is required.");
+      }
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(order, "contactPerson")) {
+    const contactPerson = asRecord(order.contactPerson);
+    if (!contactPerson) {
+      errors.push(
+        "updateOrder: `contactPerson` must be an object with `id` and `objectName`."
+      );
+    } else {
+      if (!String(contactPerson.id ?? "").trim()) {
+        errors.push("updateOrder: `contactPerson.id` is required.");
+      }
+      if (!String(contactPerson.objectName ?? "").trim()) {
+        errors.push("updateOrder: `contactPerson.objectName` is required.");
+      }
+    }
+  }
+
+  for (const field of ["orderDate", "sendDate"] as const) {
+    if (
+      Object.prototype.hasOwnProperty.call(order, field) &&
+      !parseDateLike(order[field])
+    ) {
+      errors.push(
+        `updateOrder: \`${field}\` is invalid. Use YYYY-MM-DD, DD.MM.YYYY or unix timestamp.`
+      );
+    }
+  }
+
+  return { errors, warnings };
+}
+
 function validateCreateInvoiceByFactory(
   body: unknown,
   options: PreflightOptions
@@ -554,6 +702,18 @@ export function validateWritePreflight(
 
   if (operationId === "createInvoiceByFactory") {
     return validateCreateInvoiceByFactory(body, options);
+  }
+
+  if (operationId === "updateContact") {
+    return validateUpdateContact(body);
+  }
+
+  if (operationId === "updateContactAddress") {
+    return validateUpdateContactAddress(body);
+  }
+
+  if (operationId === "updateOrder") {
+    return validateUpdateOrder(body);
   }
 
   if (operationId === "voucherFactorySaveVoucher") {

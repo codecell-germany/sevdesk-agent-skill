@@ -62,6 +62,68 @@ describe("validateWritePreflight", () => {
     expect(result.errors).toEqual([]);
   });
 
+  it("accepts valid updateOrder payload", () => {
+    const result = validateWritePreflight("updateOrder", {
+      header: "Neues Angebot",
+      contact: { id: "123", objectName: "Contact" },
+      orderDate: "2026-04-10",
+    });
+
+    expect(result.errors).toEqual([]);
+  });
+
+  it("rejects invalid updateOrder payload", () => {
+    const result = validateWritePreflight("updateOrder", {
+      contact: {},
+      orderDate: "not-a-date",
+    });
+
+    const output = result.errors.join("\n");
+    expect(output).toContain("contact.id");
+    expect(output).toContain("contact.objectName");
+    expect(output).toContain("orderDate");
+  });
+
+  it("accepts valid updateContact payload", () => {
+    const result = validateWritePreflight("updateContact", {
+      customerNumber: "KD-1001",
+      parent: { id: "88", objectName: "Contact" },
+    });
+
+    expect(result.errors).toEqual([]);
+  });
+
+  it("rejects invalid updateContact payload", () => {
+    const result = validateWritePreflight("updateContact", {
+      parent: {},
+    });
+
+    const output = result.errors.join("\n");
+    expect(output).toContain("parent.id");
+    expect(output).toContain("parent.objectName");
+  });
+
+  it("accepts valid updateContactAddress payload", () => {
+    const result = validateWritePreflight("updateContactAddress", {
+      street: "Neue Straße 5",
+      country: { id: "1", objectName: "StaticCountry" },
+      category: { id: "43", objectName: "Category" },
+    });
+
+    expect(result.errors).toEqual([]);
+  });
+
+  it("rejects invalid updateContactAddress payload", () => {
+    const result = validateWritePreflight("updateContactAddress", {
+      country: {},
+      category: "billing",
+    });
+
+    const output = result.errors.join("\n");
+    expect(output).toContain("country.id");
+    expect(output).toContain("category");
+  });
+
   it("rejects createInvoiceByFactory when deliveryDate is not later than invoiceDate", () => {
     const result = validateWritePreflight("createInvoiceByFactory", {
       invoice: {

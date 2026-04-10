@@ -105,6 +105,29 @@ sevdesk-agent invoice clone \
   --override-position-price 0=199.00 \
   --execute \
   --verify
+
+sevdesk-agent invoice recreate \
+  --from 12345 \
+  --patch-file ./payloads/invoice.patch.json \
+  --verify
+```
+
+High-level order/contact edit helpers:
+```bash
+sevdesk-agent order edit \
+  --order-id 12345 \
+  --header "Aktualisierter Angebotskopf" \
+  --address $'Muster GmbH\nMusterstraße 1\n10115 Berlin' \
+  --verify
+
+sevdesk-agent contact edit \
+  --contact-id 987 \
+  --customer-number KD-2026-1001 \
+  --street "Musterstraße 1" \
+  --zip 10115 \
+  --city Berlin \
+  --country-id 1 \
+  --verify
 ```
 
 High-level voucher helpers:
@@ -158,6 +181,7 @@ sevdesk-agent write deleteOrder \
 Invoice edit workflow (no generic updateInvoice route):
 ```bash
 sevdesk-agent docs invoice-edit
+sevdesk-agent invoice recreate --from 12345 --patch-file ./payloads/invoice.patch.json --verify
 ```
 
 Invoice finalize workflow:

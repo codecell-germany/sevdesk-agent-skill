@@ -12,6 +12,9 @@ export interface VerifySummary {
     | "createContact"
     | "createOrder"
     | "createInvoiceByFactory"
+    | "updateContact"
+    | "updateContactAddress"
+    | "updateOrder"
     | "voucherFactorySaveVoucher"
     | "bookVoucher";
   id: string;
@@ -232,6 +235,81 @@ function approxEqual(left: number, right: number, eps = 0.01): boolean {
   return Math.abs(left - right) <= eps;
 }
 
+function hasOwn(value: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function normalizeComparisonValue(value: unknown): unknown {
+  const record = asRecord(value);
+  if (record && (hasOwn(record, "id") || hasOwn(record, "objectName"))) {
+    return {
+      id: toId(record.id),
+      objectName: toId(record.objectName),
+    };
+  }
+  return value;
+}
+
+function compareValues(expected: unknown, actual: unknown): { ok: boolean; detail: string } {
+  const normalizedExpected = normalizeComparisonValue(expected);
+  const normalizedActual = normalizeComparisonValue(actual);
+
+  if (
+    typeof normalizedExpected === "number" &&
+    typeof normalizedActual === "number"
+  ) {
+    return {
+      ok: approxEqual(normalizedExpected, normalizedActual),
+      detail: `expected=${normalizedExpected} actual=${normalizedActual}`,
+    };
+  }
+
+  if (
+    typeof normalizedExpected === "boolean" &&
+    typeof normalizedActual === "boolean"
+  ) {
+    return {
+      ok: normalizedExpected === normalizedActual,
+      detail: `expected=${normalizedExpected} actual=${normalizedActual}`,
+    };
+  }
+
+  const expectedText =
+    typeof normalizedExpected === "object"
+      ? JSON.stringify(normalizedExpected)
+      : String(normalizedExpected ?? "");
+  const actualText =
+    typeof normalizedActual === "object"
+      ? JSON.stringify(normalizedActual)
+      : String(normalizedActual ?? "");
+
+  return {
+    ok: expectedText === actualText,
+    detail: `expected=${expectedText || "(empty)"} actual=${actualText || "(empty)"}`,
+  };
+}
+
+function buildPatchChecks(
+  body: unknown,
+  actualObject: Record<string, unknown>
+): VerifyCheck[] {
+  const patch = asRecord(body);
+  if (!patch) {
+    return [];
+  }
+
+  const checks: VerifyCheck[] = [];
+  for (const [key, expected] of Object.entries(patch)) {
+    const result = compareValues(expected, actualObject[key]);
+    checks.push({
+      check: key,
+      ok: result.ok,
+      detail: result.detail,
+    });
+  }
+  return checks;
+}
+
 interface CreateContactVerificationDetails {
   summary: VerifySummary;
   expectedCustomerNumber: string;
@@ -393,6 +471,66 @@ async function verifyCreateOrder(
 
   return {
     type: "createOrder",
+    id: orderId,
+    checks,
+    ok: checks.every((check) => check.ok),
+  };
+}
+
+async function verifyUpdateContact(
+  client: SevdeskClient,
+  body: unknown,
+  contactId: string
+): Promise<VerifySummary> {
+  const contactResponse = await client.request({
+    method: "GET",
+    path: `/Contact/${contactId}`,
+  });
+  const contactObject = findPrimaryObject(contactResponse.data) ?? {};
+  const checks = buildPatchChecks(body, contactObject);
+
+  return {
+    type: "updateContact",
+    id: contactId,
+    checks,
+    ok: checks.every((check) => check.ok),
+  };
+}
+
+async function verifyUpdateContactAddress(
+  client: SevdeskClient,
+  body: unknown,
+  contactAddressId: string
+): Promise<VerifySummary> {
+  const addressResponse = await client.request({
+    method: "GET",
+    path: `/ContactAddress/${contactAddressId}`,
+  });
+  const addressObject = findPrimaryObject(addressResponse.data) ?? {};
+  const checks = buildPatchChecks(body, addressObject);
+
+  return {
+    type: "updateContactAddress",
+    id: contactAddressId,
+    checks,
+    ok: checks.every((check) => check.ok),
+  };
+}
+
+async function verifyUpdateOrder(
+  client: SevdeskClient,
+  body: unknown,
+  orderId: string
+): Promise<VerifySummary> {
+  const orderResponse = await client.request({
+    method: "GET",
+    path: `/Order/${orderId}`,
+  });
+  const orderObject = findPrimaryObject(orderResponse.data) ?? {};
+  const checks = buildPatchChecks(body, orderObject);
+
+  return {
+    type: "updateOrder",
     id: orderId,
     checks,
     ok: checks.every((check) => check.ok),
@@ -691,6 +829,7 @@ export async function runWriteVerification(options: {
   client: SevdeskClient;
   body: unknown;
   writeResponse: SevdeskResponse;
+  pathParams?: Record<string, string>;
 }): Promise<VerifySummary | null> {
   if (options.operationId === "createContact") {
     return verifyCreateContact(options.client, options.body, options.writeResponse);
@@ -706,6 +845,32 @@ export async function runWriteVerification(options: {
       options.body,
       options.writeResponse
     );
+  }
+
+  if (options.operationId === "updateContact") {
+    const contactId = toId(options.pathParams?.contactId);
+    if (!contactId) {
+      throw new Error("verify(updateContact): missing contactId path param.");
+    }
+    return verifyUpdateContact(options.client, options.body, contactId);
+  }
+
+  if (options.operationId === "updateContactAddress") {
+    const contactAddressId = toId(options.pathParams?.contactAddressId);
+    if (!contactAddressId) {
+      throw new Error(
+        "verify(updateContactAddress): missing contactAddressId path param."
+      );
+    }
+    return verifyUpdateContactAddress(options.client, options.body, contactAddressId);
+  }
+
+  if (options.operationId === "updateOrder") {
+    const orderId = toId(options.pathParams?.orderId);
+    if (!orderId) {
+      throw new Error("verify(updateOrder): missing orderId path param.");
+    }
+    return verifyUpdateOrder(options.client, options.body, orderId);
   }
 
   if (options.operationId === "voucherFactorySaveVoucher") {

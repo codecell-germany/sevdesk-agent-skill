@@ -53,6 +53,9 @@ Use this skill when tasks involve sevdesk API access from this workspace, especi
    - Generate a full read-op reference doc: `sevdesk-agent docs read-ops --output knowledge/READ_OPERATIONS.md`
 3. For write calls:
    - `POST` / `PUT` / `PATCH`: `sevdesk-agent write <operationId> ...`
+   - ergonomic entity edits:
+     - `sevdesk-agent order edit --order-id <id> ... --verify`
+     - `sevdesk-agent contact edit --contact-id <id> ... --verify`
    - multipart writes are available with `--form-field key=value` and `--form-file file=/path/to/file`
    - `DELETE`: `sevdesk-agent write <operationId> --execute --confirm-execute yes --allow-write ...`
    - for `createContact` / `createOrder`, local preflight validation runs by default
@@ -85,6 +88,8 @@ Use this skill when tasks involve sevdesk API access from this workspace, especi
   - `sevdesk-agent create-invoice-installment --from-invoice <id> --percent 70 --label "..." [--execute --verify]`
 - Clone invoice for recurring workflows:
   - `sevdesk-agent invoice clone --from <id> --date <...> --period <...> with selective position overrides`
+- Safe invoice replacement when generic invoice mutation is not available:
+  - `sevdesk-agent invoice recreate --from <id> --patch-file payloads/invoice.patch.json --verify`
 - Voucher intake from local PDF:
   - `sevdesk-agent create-voucher-from-pdf --file /absolute/path/to/beleg.pdf ... [--execute --verify]`
 - Voucher booking helpers:
@@ -101,11 +106,13 @@ Use this skill when tasks involve sevdesk API access from this workspace, especi
 - use `--decode-pdf <path>` for direct PDF file output without `jq`/`base64`.
 - with `--decode-pdf`, use `--suppress-content` (default) to keep large base64 payload out of CLI output.
 - `create-voucher-from-pdf`, `book-voucher` and `assign-voucher-to-transaction` are dry-run by default; real writes happen only with `--execute`.
+- `order edit`, `contact edit` and `invoice recreate` execute directly like normal `PUT`/`POST` flows; use `--verify` to validate the result immediately.
 - If the server returns a non-JSON binary content-type (pdf/xml/zip/csv), the CLI prints metadata (`binary`, `bytes`, `contentType`) instead of raw bytes.
 - Runtime-required query quirks are enforced for selected operations (e.g. `contactCustomerNumberAvailabilityCheck` requires `customerNumber` at runtime).
 - Use `op-show` or `ops-quirks` to see operation-specific runtime quirks.
 - `ops-quirks --json` returns an object mapping; for stable array parsing use `ops-quirks --json-array`.
 - if you need invoice mutation guidance and `updateInvoice` is missing, run `sevdesk-agent docs invoice-edit`.
+- if you need to change invoice content, prefer `sevdesk-agent invoice recreate --from <id> ...` over guessing a raw `updateInvoice` payload.
 - for numbering/finalization sequence after invoice creation, run `sevdesk-agent docs invoice-finalize`.
 
 ## References

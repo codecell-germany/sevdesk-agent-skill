@@ -18,6 +18,8 @@ The skill is designed for companies that want to run bookkeeping processes throu
 - Reliable helper flows for contact lookup, billing contact resolution, and invoice discovery
 - Voucher intake workflows including PDF-backed voucher creation, transaction search, matching, and booking
 - Template-based invoice workflows such as installments and recurring clones
+- High-level edit workflows for orders and contacts
+- Safe invoice recreation when a generic invoice update route is missing
 - Safe PDF export and direct file decoding
 - Verification after writes to reduce workflow drift
 - Context snapshots for multi-agent continuation
@@ -29,6 +31,9 @@ The skill is designed for companies that want to run bookkeeping processes throu
 - Quote to invoice workflows
 - Installment invoice creation from existing invoices
 - Recurring invoice generation from templates
+- Existing orders updated through a typed patch workflow
+- Existing contacts and billing addresses updated through a typed patch workflow
+- Existing invoices recreated safely instead of unsafely patched
 - Incoming voucher intake from local PDFs
 - Voucher-to-bank-transaction matching and booking preparation
 - Finance backoffice automation with reproducible agent runs
@@ -92,6 +97,29 @@ sevdesk-agent write createInvoiceByFactory --body-file payloads/invoice.create.j
 sevdesk-agent docs invoice-finalize
 ```
 
+### Order edit
+
+```bash
+sevdesk-agent order edit \
+  --order-id 12345 \
+  --header "Updated offer header" \
+  --address $'Muster GmbH\nMusterstraße 1\n10115 Berlin' \
+  --verify
+```
+
+### Contact edit
+
+```bash
+sevdesk-agent contact edit \
+  --contact-id 987 \
+  --customer-number KD-2026-1001 \
+  --street "Musterstraße 1" \
+  --zip 10115 \
+  --city Berlin \
+  --country-id 1 \
+  --verify
+```
+
 ### Voucher intake from a local PDF
 
 ```bash
@@ -145,6 +173,15 @@ sevdesk-agent invoice clone \
   --verify
 ```
 
+### Safe invoice recreation
+
+```bash
+sevdesk-agent invoice recreate \
+  --from 12345 \
+  --patch-file payloads/invoice.patch.json \
+  --verify
+```
+
 ### Invoice search across headers and positions
 
 ```bash
@@ -167,7 +204,10 @@ sevdesk-agent read find-invoice --query term="acf" --query deepScan=true --outpu
 - `sevdesk-agent book-voucher ...`
 - `sevdesk-agent assign-voucher-to-transaction ...`
 - `sevdesk-agent create-invoice-installment ...`
+- `sevdesk-agent order edit ...`
+- `sevdesk-agent contact edit ...`
 - `sevdesk-agent invoice clone ...`
+- `sevdesk-agent invoice recreate ...`
 - `sevdesk-agent doctor --json`
 - `sevdesk-agent context snapshot ...`
 
@@ -206,6 +246,8 @@ Er richtet sich an Firmen, die Buchhaltungsabläufe nicht mehr manuell in der UI
 - Zuverlässige Helper-Flows für Kontaktsuche, Rechnungsempfänger-Auflösung und Rechnungssuche
 - Voucher-Workflows für PDF-Belege, Transaktionssuche, Matching und Buchung
 - Vorlagenbasierte Rechnungsabläufe wie Abschläge und wiederkehrende Klone
+- High-Level-Edit-Workflows für Angebote und Kontakte
+- Sichere Rechnungs-Recreation, wenn keine generische Update-Route existiert
 - Sicheren PDF-Export mit direkter Dateiausgabe
 - Verifikation nach Writes zur Reduktion von Workflow-Drift
 - Context-Snapshots für Multi-Agent-Weitergabe
@@ -217,6 +259,9 @@ Er richtet sich an Firmen, die Buchhaltungsabläufe nicht mehr manuell in der UI
 - Angebot-zu-Rechnung-Workflows
 - Abschlagsrechnungen aus bestehenden Rechnungen erzeugen
 - Wiederkehrende Rechnungen aus Vorlagen erzeugen
+- Bestehende Angebote über einen getypten Patch-Workflow aktualisieren
+- Bestehende Kontakte und Rechnungsadressen über einen getypten Patch-Workflow aktualisieren
+- Bestehende Rechnungen sicher neu erzeugen statt unsicher zu patchen
 - Eingangsbelege als PDF in Sevdesk aufnehmen
 - Belege mit Banktransaktionen matchen und buchen
 - Backoffice-Automatisierung für Finance-Teams
@@ -280,6 +325,29 @@ sevdesk-agent write createInvoiceByFactory --body-file payloads/invoice.create.j
 sevdesk-agent docs invoice-finalize
 ```
 
+### Angebot editieren
+
+```bash
+sevdesk-agent order edit \
+  --order-id 12345 \
+  --header "Aktualisierter Angebotskopf" \
+  --address $'Muster GmbH\nMusterstraße 1\n10115 Berlin' \
+  --verify
+```
+
+### Kontakt editieren
+
+```bash
+sevdesk-agent contact edit \
+  --contact-id 987 \
+  --customer-number KD-2026-1001 \
+  --street "Musterstraße 1" \
+  --zip 10115 \
+  --city Berlin \
+  --country-id 1 \
+  --verify
+```
+
 ### Beleg aus lokalem PDF anlegen
 
 ```bash
@@ -333,6 +401,15 @@ sevdesk-agent invoice clone \
   --verify
 ```
 
+### Rechnung sicher neu erzeugen
+
+```bash
+sevdesk-agent invoice recreate \
+  --from 12345 \
+  --patch-file payloads/invoice.patch.json \
+  --verify
+```
+
 ### Rechnungssuche über Header und Positionen
 
 ```bash
@@ -355,7 +432,10 @@ sevdesk-agent read find-invoice --query term="acf" --query deepScan=true --outpu
 - `sevdesk-agent book-voucher ...`
 - `sevdesk-agent assign-voucher-to-transaction ...`
 - `sevdesk-agent create-invoice-installment ...`
+- `sevdesk-agent order edit ...`
+- `sevdesk-agent contact edit ...`
 - `sevdesk-agent invoice clone ...`
+- `sevdesk-agent invoice recreate ...`
 - `sevdesk-agent doctor --json`
 - `sevdesk-agent context snapshot ...`
 

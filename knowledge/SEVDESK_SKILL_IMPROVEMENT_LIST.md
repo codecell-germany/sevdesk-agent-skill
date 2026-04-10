@@ -330,3 +330,31 @@ Quelle: direktes Praxis-Feedback zu robusteren Rechnungs-/Kontakt-Workflows.
     - `invoice.status`
     - `invoicePosSave[*].quantity/price/taxRate` auf gültige Zahlenbereiche
   - Ziel: häufige 400/422 bereits vor API-Call abfangen.
+
+## Edit-Workflows (2026-04-10)
+
+- [x] `order edit` als High-Level-Workflow ergänzt
+  - `sevdesk-agent order edit --order-id <id> ... --verify`
+  - nutzt `updateOrder`
+  - read-before-write, Preflight und Verify sind integriert
+
+- [x] `contact edit` als High-Level-Workflow ergänzt
+  - `sevdesk-agent contact edit --contact-id <id> ... --verify`
+  - nutzt `updateContact`
+  - kann optional genau eine bestehende `ContactAddress` mit aktualisieren
+  - read-before-write, Preflight und Verify sind integriert
+
+- [x] `invoice recreate` als sicherer Rechnungs-Fallback ergänzt
+  - `sevdesk-agent invoice recreate --from <id> --patch-file <json> --verify`
+  - nutzt bewusst `createInvoiceByFactory` statt einer nicht existierenden generischen `updateInvoice`-Route
+
+- [x] Preflight/Verify für Update-Fälle erweitert
+  - `updateOrder`
+  - `updateContact`
+  - `updateContactAddress`
+
+- [x] Doku und Skill synchronisiert
+  - README ergänzt
+  - `skills/sevdesk-agent-cli/SKILL.md` ergänzt
+  - Cheatsheet ergänzt
+  - `knowledge/SEVDESK_EDIT_CAPABILITY_GUIDE.md` auf Umsetzungsstand aktualisiert

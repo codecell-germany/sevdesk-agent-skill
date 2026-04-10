@@ -40,6 +40,7 @@ describe("docs", () => {
     const text = renderInvoiceEditWorkflowText();
     expect(text).toContain("no generic `updateInvoice` operation");
     expect(text).toContain("invoiceResetToDraft");
+    expect(text).toContain("invoice recreate");
     expect(text).toContain("ops list --tag Invoice");
   });
 

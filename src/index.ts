@@ -55,6 +55,12 @@ import {
   todayISO,
 } from "./lib/invoice-workflows";
 import {
+  buildContactAddressEditPatch,
+  buildContactEditPatch,
+  buildInvoiceRecreatePayload,
+  buildOrderEditPatch,
+} from "./lib/edit-workflows";
+import {
   buildBookVoucherPayload,
   buildTransactionDateRange,
   buildTransactionMatchCriteriaFromVoucher,
@@ -115,6 +121,17 @@ async function printResponse(
     return;
   }
 
+  process.stdout.write(`${toPrettyJson(payload)}\n`);
+}
+
+function printPayload(
+  payload: unknown,
+  outputMode: "pretty" | "json" | "raw"
+): void {
+  if (outputMode === "json" || outputMode === "raw") {
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
+    return;
+  }
   process.stdout.write(`${toPrettyJson(payload)}\n`);
 }
 
@@ -382,6 +399,39 @@ async function fetchTransactions(options: {
   }
 
   return transactions;
+}
+
+async function resolveSingleContactAddressId(options: {
+  client: SevdeskClient;
+  contactId: string;
+}): Promise<string> {
+  const response = await options.client.request({
+    method: "GET",
+    path: "/ContactAddress",
+    query: {
+      "contact[id]": options.contactId,
+      "contact[objectName]": "Contact",
+    },
+  });
+  const addresses = extractObjectArray(response.data);
+  if (addresses.length === 0) {
+    fail(
+      `contact edit: no contact address found for contact ${options.contactId}. Use write createContactAddress first or provide --address-id.`
+    );
+  }
+  if (addresses.length > 1) {
+    fail(
+      `contact edit: multiple addresses found for contact ${options.contactId}. Provide --address-id explicitly.`
+    );
+  }
+
+  const addressId = String(addresses[0].id ?? "").trim();
+  if (!addressId) {
+    fail(
+      `contact edit: found exactly one address for contact ${options.contactId}, but it has no id.`
+    );
+  }
+  return addressId;
 }
 
 async function runFindInvoiceByTerm(options: {
@@ -859,6 +909,9 @@ async function executeBookVoucherWorkflow(options: {
         client: options.client,
         body: options.payload,
         writeResponse: response,
+        pathParams: {
+          voucherId: options.voucherId,
+        },
       });
       extras.verification =
         verification ??
@@ -932,6 +985,7 @@ async function executeCreateInvoiceFromPayload(options: {
         client: options.client,
         body: payload,
         writeResponse: response,
+        pathParams: {},
       });
       extras.verification =
         verification ??
@@ -983,7 +1037,7 @@ const program = new Command();
 program
   .name("sevdesk-agent")
   .description("Agent-focused sevdesk CLI (TypeScript)")
-  .version("0.1.8")
+  .version("0.1.9")
   .addHelpText(
     "after",
     [
@@ -1892,6 +1946,7 @@ program
           client,
           body: payload,
           writeResponse: response,
+          pathParams: {},
         });
         extras.verification =
           verification ??
@@ -2038,6 +2093,453 @@ invoiceHelpers
       autoFixDeliveryDate: Boolean(opts.autoFixDeliveryDate),
       output: opts.output,
     });
+  });
+
+invoiceHelpers
+  .command("recreate")
+  .description(
+    "Recreate an invoice from an existing invoice as a safe fallback when generic invoice mutation is not available"
+  )
+  .requiredOption("--from <id>", "Source invoice id")
+  .option("--patch-file <file>", "JSON patch file merged into the recreated invoice payload")
+  .option("--positions-file <file>", "JSON file that fully replaces invoicePosSave")
+  .option("--invoice-date <date>", "Invoice date (default: source invoice date or today)")
+  .option("--delivery-date <date>", "Delivery date (default: invoice date)")
+  .option("--label <text>", "Label used in header/internal note", "Korrigierte Rechnung")
+  .option("--header <text>", "Override invoice header")
+  .option("--head-text <text>", "Override head text")
+  .option("--foot-text <text>", "Override foot text")
+  .option("--address <text>", "Override invoice address block")
+  .option("--customer-internal-note <text>", "Override internal note")
+  .option("--invoice-type <type>", "Override invoice type")
+  .option("--time-to-pay <days>", "Override timeToPay")
+  .option("--contact-id <id>", "Override invoice recipient contact")
+  .option(
+    "--auto-fix-delivery-date",
+    "Apply delivery date auto-fix in preflight (invoiceDate +1d)",
+    false
+  )
+  .option("--verify", "Run post-write verification", false)
+  .option("--x-version <version>", "Optional sevdesk X-Version header")
+  .option("--output <mode>", "pretty|json|raw", "pretty")
+  .action(async (opts) => {
+    if (opts.output !== "pretty" && opts.output !== "json" && opts.output !== "raw") {
+      fail("--output must be pretty|json|raw.");
+    }
+
+    const config = loadConfig({ xVersion: opts.xVersion });
+    const client = new SevdeskClient(config);
+    const source = await readInvoiceTemplate({
+      client,
+      invoiceId: String(opts.from),
+    });
+
+    const patchBody = opts.patchFile ? await readJsonFile(String(opts.patchFile)) : undefined;
+    const positionsOverride = opts.positionsFile
+      ? ((await readJsonFile(String(opts.positionsFile))) as unknown[])
+      : undefined;
+    const sourceDate = String(source.invoice.invoiceDate ?? todayISO()) || todayISO();
+    const invoiceDate = String(opts.invoiceDate ?? sourceDate);
+    const deliveryDate = String(opts.deliveryDate ?? invoiceDate);
+
+    const mergedPatchBody =
+      positionsOverride !== undefined
+        ? {
+            ...(typeof patchBody === "object" && patchBody !== null ? patchBody : {}),
+            invoicePosSave: positionsOverride,
+          }
+        : patchBody;
+
+    const payload = buildInvoiceRecreatePayload({
+      sourceInvoice: source.invoice,
+      sourcePositions: source.positions,
+      patchBody: mergedPatchBody,
+      invoiceDate,
+      deliveryDate,
+      label: String(opts.label),
+      header: opts.header,
+      headText: opts.headText,
+      footText: opts.footText,
+      address: opts.address,
+      contactId: opts.contactId,
+      customerInternalNote: opts.customerInternalNote,
+      invoiceType: opts.invoiceType,
+      timeToPay:
+        opts.timeToPay !== undefined
+          ? parseIntegerOrFail(String(opts.timeToPay), "--time-to-pay", 0)
+          : undefined,
+    });
+
+    await executeCreateInvoiceFromPayload({
+      client,
+      payload,
+      verify: Boolean(opts.verify),
+      autoFixDeliveryDate: Boolean(opts.autoFixDeliveryDate),
+      output: opts.output,
+    });
+  });
+
+const orderHelpers = program.command("order").description("Order workflow helpers");
+
+orderHelpers
+  .command("edit")
+  .description("Edit an existing order with a typed high-level patch workflow")
+  .requiredOption("--order-id <id>", "Order id")
+  .option("--patch-file <file>", "JSON patch file (direct object or wrapped as { order: ... })")
+  .option("--order-number <text>", "Override order number")
+  .option("--header <text>", "Override order header")
+  .option("--head-text <text>", "Override order headText")
+  .option("--foot-text <text>", "Override order footText")
+  .option("--address <text>", "Override order address block")
+  .option("--order-date <date>", "Override order date")
+  .option("--status <n>", "Override order status")
+  .option("--currency <code>", "Override currency")
+  .option("--customer-internal-note <text>", "Override internal note")
+  .option("--time-to-pay <days>", "Override timeToPay")
+  .option("--tax-text <text>", "Override tax text")
+  .option("--contact-id <id>", "Override order contact")
+  .option("--contact-person-id <id>", "Override order contactPerson")
+  .option("--verify", "Run post-write verification", false)
+  .option("--x-version <version>", "Optional sevdesk X-Version header")
+  .option("--output <mode>", "pretty|json|raw", "pretty")
+  .action(async (opts) => {
+    if (opts.output !== "pretty" && opts.output !== "json" && opts.output !== "raw") {
+      fail("--output must be pretty|json|raw.");
+    }
+
+    const patchBody = opts.patchFile ? await readJsonFile(String(opts.patchFile)) : undefined;
+    const patch = buildOrderEditPatch({
+      patchBody,
+      orderNumber: opts.orderNumber,
+      header: opts.header,
+      headText: opts.headText,
+      footText: opts.footText,
+      address: opts.address,
+      orderDate: opts.orderDate,
+      status:
+        opts.status !== undefined
+          ? parseIntegerOrFail(String(opts.status), "--status", 0)
+          : undefined,
+      currency: opts.currency,
+      customerInternalNote: opts.customerInternalNote,
+      timeToPay:
+        opts.timeToPay !== undefined
+          ? parseIntegerOrFail(String(opts.timeToPay), "--time-to-pay", 0)
+          : undefined,
+      taxText: opts.taxText,
+      contactId: opts.contactId,
+      contactPersonId: opts.contactPersonId,
+    });
+
+    const preflight = validateWritePreflight("updateOrder", patch);
+    if (preflight.errors.length > 0) {
+      fail(
+        [
+          "Preflight validation failed for updateOrder:",
+          ...preflight.errors.map((error) => `- ${error}`),
+        ].join("\n")
+      );
+    }
+    emitPreflightDiagnostics("updateOrder", preflight.warnings, preflight.autoFixes);
+
+    const config = loadConfig({ xVersion: opts.xVersion });
+    const client = new SevdeskClient(config);
+    await client.request({
+      method: "GET",
+      path: `/Order/${String(opts.orderId)}`,
+    });
+
+    const response = await client.request({
+      method: "PUT",
+      path: `/Order/${String(opts.orderId)}`,
+      body: patch,
+    });
+
+    const payload: Record<string, unknown> = {
+      workflowOperation: "order.edit",
+      orderId: String(opts.orderId),
+      appliedPatch: patch,
+      response,
+    };
+
+    if (!response.ok) {
+      const hints = deriveRemediationHints({
+        operationId: "updateOrder",
+        status: response.status,
+        data: response.data,
+      });
+      if (hints.length > 0) {
+        payload.remediationHints = hints;
+      }
+    }
+
+    if (opts.verify) {
+      payload.verification = await runWriteVerification({
+        operationId: "updateOrder",
+        client,
+        body: patch,
+        writeResponse: response,
+        pathParams: {
+          orderId: String(opts.orderId),
+        },
+      });
+    }
+
+    printPayload(payload, opts.output);
+  });
+
+const contactHelpers = program.command("contact").description("Contact workflow helpers");
+
+contactHelpers
+  .command("edit")
+  .description("Edit an existing contact and optionally one billing address")
+  .requiredOption("--contact-id <id>", "Contact id")
+  .option("--patch-file <file>", "JSON patch file (direct object or wrapped as { contact: ... })")
+  .option("--name <text>", "Override company name")
+  .option("--surename <text>", "Override first name")
+  .option("--familyname <text>", "Override last name")
+  .option("--name2 <text>", "Override second name")
+  .option("--customer-number <text>", "Override customer number")
+  .option("--parent-id <id>", "Override parent company id")
+  .option("--description <text>", "Override contact description")
+  .option("--vat-number <text>", "Override VAT number")
+  .option("--tax-number <text>", "Override tax number")
+  .option("--bank-account <text>", "Override IBAN")
+  .option("--status <n>", "Override contact status")
+  .option("--exempt-vat <bool>", "Override exemptVat flag")
+  .option("--address-id <id>", "Existing contactAddress id to update")
+  .option(
+    "--address-patch-file <file>",
+    "JSON patch file for address update (direct object or wrapped as { contactAddress: ... })"
+  )
+  .option("--street <text>", "Override billing street")
+  .option("--zip <text>", "Override billing zip")
+  .option("--city <text>", "Override billing city")
+  .option("--country-id <id>", "Override billing country id")
+  .option("--address-category-id <id>", "Override billing address category id")
+  .option("--billing-name <text>", "Override billing name")
+  .option("--billing-name2 <text>", "Override billing name2")
+  .option("--billing-name3 <text>", "Override billing name3")
+  .option("--billing-name4 <text>", "Override billing name4")
+  .option("--verify", "Run post-write verification", false)
+  .option("--x-version <version>", "Optional sevdesk X-Version header")
+  .option("--output <mode>", "pretty|json|raw", "pretty")
+  .action(async (opts) => {
+    if (opts.output !== "pretty" && opts.output !== "json" && opts.output !== "raw") {
+      fail("--output must be pretty|json|raw.");
+    }
+
+    const patchBody = opts.patchFile ? await readJsonFile(String(opts.patchFile)) : undefined;
+    const hasContactFlags = [
+      opts.name,
+      opts.surename,
+      opts.familyname,
+      opts.name2,
+      opts.customerNumber,
+      opts.parentId,
+      opts.description,
+      opts.vatNumber,
+      opts.taxNumber,
+      opts.bankAccount,
+      opts.status,
+      opts.exemptVat,
+    ].some((value) => value !== undefined);
+
+    const contactPatch =
+      patchBody || hasContactFlags
+        ? buildContactEditPatch({
+            patchBody,
+            name: opts.name,
+            surename: opts.surename,
+            familyname: opts.familyname,
+            name2: opts.name2,
+            customerNumber: opts.customerNumber,
+            parentId: opts.parentId,
+            description: opts.description,
+            vatNumber: opts.vatNumber,
+            taxNumber: opts.taxNumber,
+            bankAccount: opts.bankAccount,
+            status:
+              opts.status !== undefined
+                ? parseIntegerOrFail(String(opts.status), "--status", 0)
+                : undefined,
+            exemptVat:
+              opts.exemptVat !== undefined
+                ? parseBooleanLike(String(opts.exemptVat), false)
+                : undefined,
+          })
+        : null;
+
+    if (contactPatch) {
+      const updateContactPreflight = validateWritePreflight("updateContact", contactPatch);
+      if (updateContactPreflight.errors.length > 0) {
+        fail(
+          [
+            "Preflight validation failed for updateContact:",
+            ...updateContactPreflight.errors.map((error) => `- ${error}`),
+          ].join("\n")
+        );
+      }
+      emitPreflightDiagnostics(
+        "updateContact",
+        updateContactPreflight.warnings,
+        updateContactPreflight.autoFixes
+      );
+    }
+
+    const addressPatchBody = opts.addressPatchFile
+      ? await readJsonFile(String(opts.addressPatchFile))
+      : undefined;
+    const hasAddressFlags = [
+      opts.street,
+      opts.zip,
+      opts.city,
+      opts.countryId,
+      opts.addressCategoryId,
+      opts.billingName,
+      opts.billingName2,
+      opts.billingName3,
+      opts.billingName4,
+    ].some((value) => value !== undefined);
+
+    const addressPatch =
+      addressPatchBody || hasAddressFlags
+        ? buildContactAddressEditPatch({
+            patchBody: addressPatchBody,
+            contactId: String(opts.contactId),
+            street: opts.street,
+            zip: opts.zip,
+            city: opts.city,
+            countryId: opts.countryId,
+            categoryId: opts.addressCategoryId,
+            name: opts.billingName,
+            name2: opts.billingName2,
+            name3: opts.billingName3,
+            name4: opts.billingName4,
+          })
+        : null;
+
+    if (!contactPatch && !addressPatch) {
+      fail("contact edit: no editable contact or address fields provided.");
+    }
+
+    if (addressPatch) {
+      const addressPreflight = validateWritePreflight(
+        "updateContactAddress",
+        addressPatch
+      );
+      if (addressPreflight.errors.length > 0) {
+        fail(
+          [
+            "Preflight validation failed for updateContactAddress:",
+            ...addressPreflight.errors.map((error) => `- ${error}`),
+          ].join("\n")
+        );
+      }
+      emitPreflightDiagnostics(
+        "updateContactAddress",
+        addressPreflight.warnings,
+        addressPreflight.autoFixes
+      );
+    }
+
+    const config = loadConfig({ xVersion: opts.xVersion });
+    const client = new SevdeskClient(config);
+    await client.request({
+      method: "GET",
+      path: `/Contact/${String(opts.contactId)}`,
+    });
+
+    const contactResponse = contactPatch
+      ? await client.request({
+          method: "PUT",
+          path: `/Contact/${String(opts.contactId)}`,
+          body: contactPatch,
+        })
+      : null;
+
+    let addressResponse: SevdeskResponse | null = null;
+    let addressId = opts.addressId ? String(opts.addressId) : "";
+    if (addressPatch) {
+      if (!addressId) {
+        addressId = await resolveSingleContactAddressId({
+          client,
+          contactId: String(opts.contactId),
+        });
+      }
+      addressResponse = await client.request({
+        method: "PUT",
+        path: `/ContactAddress/${addressId}`,
+        body: addressPatch,
+      });
+    }
+
+    const payload: Record<string, unknown> = {
+      workflowOperation: "contact.edit",
+      contactId: String(opts.contactId),
+      ...(contactPatch ? { appliedPatch: contactPatch } : {}),
+      response: {
+        ...(contactResponse ? { contact: contactResponse } : {}),
+        ...(addressResponse
+          ? {
+              address: addressResponse,
+              addressId,
+              appliedAddressPatch: addressPatch,
+            }
+          : {}),
+      },
+    };
+
+    if ((contactResponse && !contactResponse.ok) || (addressResponse && !addressResponse.ok)) {
+      const hints = new Set<string>();
+      for (const step of [
+        { operationId: "updateContact", response: contactResponse },
+        { operationId: "updateContactAddress", response: addressResponse },
+      ]) {
+        if (!step.response || step.response.ok) {
+          continue;
+        }
+        for (const hint of deriveRemediationHints({
+          operationId: step.operationId,
+          status: step.response.status,
+          data: step.response.data,
+        })) {
+          hints.add(hint);
+        }
+      }
+      if (hints.size > 0) {
+        payload.remediationHints = [...hints];
+      }
+    }
+
+    if (opts.verify) {
+      const verification: Record<string, unknown> = {};
+      if (contactPatch && contactResponse) {
+        verification.contact = await runWriteVerification({
+          operationId: "updateContact",
+          client,
+          body: contactPatch,
+          writeResponse: contactResponse,
+          pathParams: {
+            contactId: String(opts.contactId),
+          },
+        });
+      }
+      if (addressResponse && addressPatch && addressId) {
+        verification.address = await runWriteVerification({
+          operationId: "updateContactAddress",
+          client,
+          body: addressPatch,
+          writeResponse: addressResponse,
+          pathParams: {
+            contactAddressId: addressId,
+          },
+        });
+      }
+      payload.verification = verification;
+    }
+
+    printPayload(payload, opts.output);
   });
 
 program
@@ -2413,6 +2915,7 @@ program
           client,
           body,
           writeResponse: response,
+          pathParams,
         });
         if (verification) {
           extras.verification = verification;

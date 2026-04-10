@@ -71,6 +71,117 @@ describe("runWriteVerification", () => {
     expect(verification).toBeNull();
   });
 
+  it("verifies updateContact via path param and patched fields", async () => {
+    const request = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: {},
+      data: {
+        objects: {
+          id: "100",
+          customerNumber: "KD-1001",
+          parent: { id: "88", objectName: "Contact" },
+        },
+      },
+    });
+
+    const client = { request } as unknown as SevdeskClient;
+    const verification = await runWriteVerification({
+      operationId: "updateContact",
+      client,
+      body: {
+        customerNumber: "KD-1001",
+        parent: { id: "88", objectName: "Contact" },
+      },
+      writeResponse: {
+        ok: true,
+        status: 200,
+        headers: {},
+        data: {},
+      },
+      pathParams: {
+        contactId: "100",
+      },
+    });
+
+    expect(verification?.type).toBe("updateContact");
+    expect(verification?.ok).toBe(true);
+  });
+
+  it("verifies updateContactAddress via path param and patched fields", async () => {
+    const request = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: {},
+      data: {
+        objects: {
+          id: "500",
+          street: "Neue Straße 5",
+          city: "Berlin",
+        },
+      },
+    });
+
+    const client = { request } as unknown as SevdeskClient;
+    const verification = await runWriteVerification({
+      operationId: "updateContactAddress",
+      client,
+      body: {
+        street: "Neue Straße 5",
+        city: "Berlin",
+      },
+      writeResponse: {
+        ok: true,
+        status: 200,
+        headers: {},
+        data: {},
+      },
+      pathParams: {
+        contactAddressId: "500",
+      },
+    });
+
+    expect(verification?.type).toBe("updateContactAddress");
+    expect(verification?.ok).toBe(true);
+  });
+
+  it("verifies updateOrder via path param and patched fields", async () => {
+    const request = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: {},
+      data: {
+        objects: {
+          id: "700",
+          header: "Neues Angebot",
+          contact: { id: "55", objectName: "Contact" },
+        },
+      },
+    });
+
+    const client = { request } as unknown as SevdeskClient;
+    const verification = await runWriteVerification({
+      operationId: "updateOrder",
+      client,
+      body: {
+        header: "Neues Angebot",
+        contact: { id: "55", objectName: "Contact" },
+      },
+      writeResponse: {
+        ok: true,
+        status: 200,
+        headers: {},
+        data: {},
+      },
+      pathParams: {
+        orderId: "700",
+      },
+    });
+
+    expect(verification?.type).toBe("updateOrder");
+    expect(verification?.ok).toBe(true);
+  });
+
   it("verifies createInvoiceByFactory with contact, positions, sums, status and taxRule", async () => {
     const request = vi
       .fn()

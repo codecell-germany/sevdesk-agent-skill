@@ -102,6 +102,12 @@ export function deriveRemediationHints(options: {
     );
   }
 
+  if (options.operationId === "updateInvoiceTemplate") {
+    hints.add(
+      "Use `updateInvoiceTemplate` only for layout/template keys (`language`, `template`, `letterpaper`, `payPal`). For content changes use `sevdesk-agent invoice recreate --from <id> ...`."
+    );
+  }
+
   if (options.status === 401 || joined.includes("unauthorized")) {
     hints.add("Verify `SEVDESK_API_TOKEN` and account permissions for this operation.");
   }
