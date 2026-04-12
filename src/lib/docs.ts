@@ -232,6 +232,8 @@ export function renderReadUsageText(): string {
     "   sevdesk-agent read find-invoice --query term='acf' --query deepScan=true --output json",
     "   sevdesk-agent read find-transaction --query amount=119 --query booked=false --output json",
     "   sevdesk-agent read match-transaction --query voucherId=123 --query windowDays=30 --output json",
+    "   sevdesk-agent transaction find-match --supplier 'Adobe' --amount 119 --date 2026-03-10 --direction expense --output json",
+    "   sevdesk-agent voucher inspect --id 901 --output json",
     "",
     "Notes:",
     "- Provide repeated params via --path/--query flags.",

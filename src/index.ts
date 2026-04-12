@@ -39,6 +39,7 @@ import {
   verifyAndMaybeFixCreateContact,
 } from "./lib/verify";
 import { deriveRemediationHints } from "./lib/remediation";
+import { hasFailedVerification } from "./lib/response-evaluation";
 import {
   renderInvoiceEditWorkflowText,
   renderInvoiceFinalizeWorkflowText,
@@ -61,14 +62,17 @@ import {
   buildOrderEditPatch,
 } from "./lib/edit-workflows";
 import {
+  buildBookExistingVoucherPlan,
   buildBookVoucherPayload,
   buildTransactionDateRange,
   buildTransactionMatchCriteriaFromVoucher,
   buildVoucherPayloadFromArgs,
   buildVoucherPayloadFromTemplate,
+  extractUploadedFileMetadata,
   extractTransactionObjects,
   extractUploadedFilename,
   matchTransactions,
+  summarizeVoucherInspect,
 } from "./lib/voucher-workflows";
 import type { SevdeskResponse } from "./lib/types";
 
@@ -95,11 +99,14 @@ async function printResponse(
   savePath?: string,
   extras: Record<string, unknown> = {}
 ): Promise<void> {
+  const verificationFailed = hasFailedVerification(extras.verification);
   const payload = {
-    ok: response.ok,
+    ok: response.ok && !verificationFailed,
+    httpOk: response.ok,
     status: response.status,
     headers: response.headers,
     data: response.data,
+    ...(verificationFailed ? { verificationFailed: true } : {}),
     ...extras,
   };
 
@@ -109,19 +116,19 @@ async function printResponse(
 
   if (outputMode === "json") {
     process.stdout.write(`${JSON.stringify(payload)}\n`);
-    return;
-  }
-
-  if (outputMode === "raw") {
+  } else if (outputMode === "raw") {
     if (typeof response.data === "string") {
       process.stdout.write(`${response.data}\n`);
-      return;
+    } else {
+      process.stdout.write(`${JSON.stringify(response.data)}\n`);
     }
-    process.stdout.write(`${JSON.stringify(response.data)}\n`);
-    return;
+  } else {
+    process.stdout.write(`${toPrettyJson(payload)}\n`);
   }
 
-  process.stdout.write(`${toPrettyJson(payload)}\n`);
+  if (!payload.ok) {
+    process.exitCode = 1;
+  }
 }
 
 function printPayload(
@@ -399,6 +406,101 @@ async function fetchTransactions(options: {
   }
 
   return transactions;
+}
+
+async function fetchTransactionById(options: {
+  client: SevdeskClient;
+  transactionId: string;
+}): Promise<Record<string, unknown>> {
+  const response = await options.client.request({
+    method: "GET",
+    path: `/CheckAccountTransaction/${options.transactionId}`,
+  });
+  const transaction = extractPrimaryObject(response.data);
+  if (!transaction) {
+    fail(
+      `Transaction ${options.transactionId} not found or has unexpected response shape.`
+    );
+  }
+  return transaction;
+}
+
+async function readVoucherWithPositions(options: {
+  client: SevdeskClient;
+  voucherId: string;
+}): Promise<{
+  voucher: Record<string, unknown>;
+  positions: Record<string, unknown>[];
+}> {
+  const voucherResponse = await options.client.request({
+    method: "GET",
+    path: `/Voucher/${options.voucherId}`,
+  });
+  const voucher = extractPrimaryObject(voucherResponse.data);
+  if (!voucher) {
+    fail(`Voucher ${options.voucherId} not found or has unexpected response shape.`);
+  }
+
+  const positionsResponse = await options.client.request({
+    method: "GET",
+    path: `/Voucher/${options.voucherId}/getPositions`,
+  });
+
+  return {
+    voucher,
+    positions: extractObjectArray(positionsResponse.data),
+  };
+}
+
+async function uploadVoucherPdf(options: {
+  client: SevdeskClient;
+  filePath: string;
+}): Promise<{
+  response: SevdeskResponse;
+  uploadedFilename: string;
+  normalizedUpload: Record<string, unknown>;
+}> {
+  const response = await options.client.request({
+    method: "POST",
+    path: "/Voucher/Factory/uploadTempFile",
+    formData: {
+      file: {
+        filePath: options.filePath,
+      },
+    },
+  });
+
+  const metadata = extractUploadedFileMetadata(response.data);
+  const uploadedFilename = extractUploadedFilename(response.data);
+  if (!response.ok) {
+    return {
+      response,
+      uploadedFilename: "",
+      normalizedUpload: {
+        filename: metadata.filename,
+        mimeType: metadata.mimeType,
+        documentId: metadata.documentId,
+        filePath: options.filePath,
+      },
+    };
+  }
+
+  if (!uploadedFilename) {
+    fail(
+      "Voucher upload succeeded but no sevdesk filename was returned. Inspect the raw upload response."
+    );
+  }
+
+  return {
+    response,
+    uploadedFilename,
+    normalizedUpload: {
+      filename: uploadedFilename,
+      mimeType: metadata.mimeType,
+      documentId: metadata.documentId,
+      filePath: options.filePath,
+    },
+  };
 }
 
 async function resolveSingleContactAddressId(options: {
@@ -716,7 +818,7 @@ async function runMatchTransactionByVoucher(options: {
     top &&
     top.checkAccountId &&
     typeof criteria.amount === "number"
-      ? `sevdesk-agent book-voucher --voucher-id ${options.voucherId} --check-account-id ${top.checkAccountId} --transaction-id ${top.id} --amount ${criteria.amount.toFixed(2)} --date ${top.valueDate ?? todayISO()} --execute --verify`
+      ? `sevdesk-agent voucher book-existing --voucher-id ${options.voucherId} --transaction-id ${top.id} --amount ${criteria.amount.toFixed(2)} --date ${top.valueDate ?? todayISO()} --execute --verify`
       : null;
 
   const payload = {
@@ -863,14 +965,105 @@ function buildVoucherPayloadForPdfWorkflow(options: {
   });
 }
 
+async function saveVoucherPayload(options: {
+  client: SevdeskClient;
+  payload: Record<string, unknown>;
+  verify: boolean;
+}): Promise<{ response: SevdeskResponse; extras: Record<string, unknown> }> {
+  const preflight = validateWritePreflight("voucherFactorySaveVoucher", options.payload);
+  if (preflight.errors.length > 0) {
+    fail(
+      [
+        "Preflight validation failed for voucherFactorySaveVoucher:",
+        ...preflight.errors.map((error) => `- ${error}`),
+      ].join("\n")
+    );
+  }
+  emitPreflightDiagnostics(
+    "voucherFactorySaveVoucher",
+    preflight.warnings,
+    preflight.autoFixes
+  );
+
+  const response = await options.client.request({
+    method: "POST",
+    path: "/Voucher/Factory/saveVoucher",
+    body: options.payload,
+  });
+
+  const extras: Record<string, unknown> = {};
+  if (!response.ok) {
+    const hints = deriveRemediationHints({
+      operationId: "voucherFactorySaveVoucher",
+      status: response.status,
+      data: response.data,
+    });
+    if (hints.length > 0) {
+      extras.remediationHints = hints;
+    }
+  }
+
+  if (options.verify) {
+    try {
+      const verification = await runWriteVerification({
+        operationId: "voucherFactorySaveVoucher",
+        client: options.client,
+        body: options.payload,
+        writeResponse: response,
+        pathParams: {},
+      });
+      extras.verification =
+        verification ??
+        ({
+          skipped: true,
+          reason: "No built-in verification for voucherFactorySaveVoucher",
+        } as Record<string, unknown>);
+    } catch (error) {
+      extras.verification = {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  return {
+    response,
+    extras,
+  };
+}
+
+async function runVoucherInspect(options: {
+  voucherId: string;
+  output: "pretty" | "json";
+  xVersion?: string;
+}): Promise<void> {
+  const config = loadConfig({ xVersion: options.xVersion });
+  const client = new SevdeskClient(config);
+  const { voucher, positions } = await readVoucherWithPositions({
+    client,
+    voucherId: options.voucherId,
+  });
+
+  const payload = {
+    ok: true,
+    voucher: summarizeVoucherInspect(voucher, positions),
+  };
+
+  if (options.output === "json") {
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
+    return;
+  }
+
+  process.stdout.write(`${toPrettyJson(payload)}\n`);
+}
+
 async function executeBookVoucherWorkflow(options: {
   client: SevdeskClient;
   voucherId: string;
   payload: unknown;
   verify: boolean;
-  output: "pretty" | "json" | "raw";
   mode: "book" | "assign-and-book";
-}): Promise<void> {
+}): Promise<{ response: SevdeskResponse; extras: Record<string, unknown> }> {
   const preflight = validateWritePreflight("bookVoucher", options.payload);
   if (preflight.errors.length > 0) {
     fail(
@@ -912,6 +1105,10 @@ async function executeBookVoucherWorkflow(options: {
         pathParams: {
           voucherId: options.voucherId,
         },
+        bookVoucherOptions: {
+          maxAttempts: 4,
+          retryDelayMs: 750,
+        },
       });
       extras.verification =
         verification ??
@@ -927,7 +1124,10 @@ async function executeBookVoucherWorkflow(options: {
     }
   }
 
-  await printResponse(response, options.output, undefined, extras);
+  return {
+    response,
+    extras,
+  };
 }
 
 async function executeCreateInvoiceFromPayload(options: {
@@ -1037,7 +1237,7 @@ const program = new Command();
 program
   .name("sevdesk-agent")
   .description("Agent-focused sevdesk CLI (TypeScript)")
-  .version("0.1.10")
+  .version("0.1.11")
   .addHelpText(
     "after",
     [
@@ -1738,6 +1938,474 @@ program
     });
   });
 
+const transactionCli = program
+  .command("transaction")
+  .description("Higher-level transaction search helpers");
+
+transactionCli
+  .command("find-match")
+  .description(
+    "Find likely matching transactions by supplier, amount, date and direction"
+  )
+  .option("--supplier <text>", "Supplier/payee text for matching")
+  .option("--amount <n>", "Expected absolute amount")
+  .option("--date <date>", "Anchor date for a local search window")
+  .option("--window-days <n>", "Date window around --date", "7")
+  .option("--direction <dir>", "expense|revenue", "expense")
+  .option("--status <status>", "open|all", "open")
+  .option("--check-account-id <id>", "Optional sevdesk check account id filter")
+  .option("--limit <n>", "Maximum matches returned", "20")
+  .option("--max-transactions <n>", "Maximum transactions scanned", "200")
+  .option("--x-version <version>", "Optional sevdesk X-Version header")
+  .option("--output <mode>", "pretty|json", "pretty")
+  .action(async (opts) => {
+    const limit = parseIntegerOrFail(String(opts.limit), "--limit");
+    const maxTransactions = parseIntegerOrFail(
+      String(opts.maxTransactions),
+      "--max-transactions"
+    );
+    const windowDays = parseIntegerOrFail(String(opts.windowDays), "--window-days", 0);
+    if (opts.output !== "pretty" && opts.output !== "json") {
+      fail("--output must be either pretty or json.");
+    }
+
+    const direction = String(opts.direction).trim().toLowerCase();
+    if (direction !== "expense" && direction !== "revenue") {
+      fail("--direction must be expense|revenue.");
+    }
+
+    const status = String(opts.status).trim().toLowerCase();
+    if (status !== "open" && status !== "all") {
+      fail("--status must be open|all.");
+    }
+
+    const amount =
+      opts.amount !== undefined
+        ? parseNumberOrFail(String(opts.amount), "--amount", 0)
+        : null;
+    const dateRange = opts.date
+      ? buildTransactionDateRange(String(opts.date), windowDays)
+      : null;
+
+    await runFindTransactionByFilters({
+      term: opts.supplier ? String(opts.supplier).trim() : undefined,
+      amount,
+      dateFrom: dateRange?.startDate,
+      dateTo: dateRange?.endDate,
+      booked: status === "open" ? false : null,
+      checkAccountId: opts.checkAccountId,
+      creditOnly: direction === "revenue",
+      debitOnly: direction === "expense",
+      limit,
+      maxTransactions,
+      output: opts.output,
+      xVersion: opts.xVersion,
+    });
+  });
+
+transactionCli
+  .command("list-open-expenses")
+  .description("List open expense transactions within a date range")
+  .option("--date-from <date>", "Start date")
+  .option("--date-to <date>", "End date")
+  .option("--check-account-id <id>", "Optional sevdesk check account id filter")
+  .option("--limit <n>", "Maximum matches returned", "20")
+  .option("--max-transactions <n>", "Maximum transactions scanned", "200")
+  .option("--x-version <version>", "Optional sevdesk X-Version header")
+  .option("--output <mode>", "pretty|json", "pretty")
+  .action(async (opts) => {
+    const limit = parseIntegerOrFail(String(opts.limit), "--limit");
+    const maxTransactions = parseIntegerOrFail(
+      String(opts.maxTransactions),
+      "--max-transactions"
+    );
+    if (opts.output !== "pretty" && opts.output !== "json") {
+      fail("--output must be either pretty or json.");
+    }
+
+    await runFindTransactionByFilters({
+      term: undefined,
+      amount: null,
+      dateFrom: opts.dateFrom,
+      dateTo: opts.dateTo,
+      booked: false,
+      checkAccountId: opts.checkAccountId,
+      creditOnly: false,
+      debitOnly: true,
+      limit,
+      maxTransactions,
+      output: opts.output,
+      xVersion: opts.xVersion,
+    });
+  });
+
+const voucherCli = program
+  .command("voucher")
+  .description("Voucher inspection and booking workflows");
+
+voucherCli
+  .command("inspect")
+  .description("Inspect a voucher together with positions and payment state")
+  .requiredOption("--id <id>", "Sevdesk voucher id")
+  .option("--x-version <version>", "Optional sevdesk X-Version header")
+  .option("--output <mode>", "pretty|json", "pretty")
+  .action(async (opts) => {
+    if (opts.output !== "pretty" && opts.output !== "json") {
+      fail("--output must be either pretty or json.");
+    }
+    await runVoucherInspect({
+      voucherId: String(opts.id),
+      output: opts.output,
+      xVersion: opts.xVersion,
+    });
+  });
+
+voucherCli
+  .command("book-existing")
+  .description(
+    "Reuse an existing voucher and book it against a specific transaction (dry-run by default)"
+  )
+  .requiredOption("--voucher-id <id>", "Sevdesk voucher id")
+  .requiredOption("--transaction-id <id>", "Sevdesk checkAccountTransaction id")
+  .option("--amount <n>", "Override booking amount")
+  .option("--date <date>", "Override booking date")
+  .option("--type <type>", "Booking type", "FULL_PAYMENT")
+  .option("--create-feed", "Set createFeed=true", false)
+  .option("--execute", "Actually book the voucher", false)
+  .option("--verify", "Run post-book verification", false)
+  .option("--x-version <version>", "Optional sevdesk X-Version header")
+  .option("--output <mode>", "pretty|json|raw", "pretty")
+  .action(async (opts) => {
+    if (opts.output !== "pretty" && opts.output !== "json" && opts.output !== "raw") {
+      fail("--output must be pretty|json|raw.");
+    }
+
+    const config = loadConfig({ xVersion: opts.xVersion });
+    const client = new SevdeskClient(config);
+    const { voucher } = await readVoucherWithPositions({
+      client,
+      voucherId: String(opts.voucherId),
+    });
+    const transaction = await fetchTransactionById({
+      client,
+      transactionId: String(opts.transactionId),
+    });
+    const plan = buildBookExistingVoucherPlan({
+      voucher,
+      transaction,
+      amount:
+        opts.amount !== undefined
+          ? parseNumberOrFail(String(opts.amount), "--amount", 0)
+          : undefined,
+      date: opts.date ? String(opts.date) : undefined,
+      type: String(opts.type),
+      createFeed: opts.createFeed ? true : undefined,
+    });
+
+    if (!plan.payload) {
+      fail(
+        [
+          "voucher book-existing: unable to derive a valid booking payload.",
+          ...plan.warnings.map((warning) => `- ${warning}`),
+        ].join("\n")
+      );
+    }
+
+    if (!opts.execute) {
+      printPayload(
+        {
+          dryRun: true,
+          voucher: plan.voucher,
+          transaction: plan.transaction,
+          warnings: plan.warnings,
+          payload: plan.payload,
+        },
+        opts.output
+      );
+      return;
+    }
+
+    const result = await executeBookVoucherWorkflow({
+      client,
+      voucherId: String(opts.voucherId),
+      payload: plan.payload,
+      verify: Boolean(opts.verify),
+      mode: "assign-and-book",
+    });
+    await printResponse(result.response, opts.output, undefined, {
+      voucher: plan.voucher,
+      transaction: plan.transaction,
+      warnings: plan.warnings,
+      ...result.extras,
+    });
+  });
+
+const expenseCli = program
+  .command("expense")
+  .description("Expense intake and booking workflows");
+
+expenseCli
+  .command("process-paid")
+  .description(
+    "Upload a paid expense PDF, create a voucher and book it to an existing transaction (dry-run by default)"
+  )
+  .requiredOption("--file <path>", "Absolute or relative PDF path")
+  .requiredOption("--transaction-id <id>", "Existing checkAccountTransaction id")
+  .option("--body-file <file>", "JSON file with a saveVoucher payload template")
+  .option("--supplier-id <id>", "Existing sevdesk supplier contact id")
+  .option("--supplier-name <name>", "Supplier name when no contact id exists")
+  .option("--description <text>", "Voucher description (defaults to filename)")
+  .option("--voucher-date <date>", "Voucher date")
+  .option("--delivery-date <date>", "Delivery date (defaults to voucher-date)")
+  .option("--currency <code>", "Currency code", "EUR")
+  .option("--status <status>", "Voucher status 50 or 100", "100")
+  .option("--credit-debit <type>", "Voucher direction, usually D or C", "D")
+  .option("--voucher-type <type>", "Voucher type, usually VOU", "VOU")
+  .option("--tax-type <type>", "sevdesk taxType (e.g. default, ss)")
+  .option("--tax-rule-id <id>", "sevdesk TaxRule id")
+  .option("--tax-rate <n>", "Position tax rate")
+  .option("--amount <n>", "Voucher amount for simple mode")
+  .option("--net", "Interpret --amount as net amount", false)
+  .option("--account-datev-id <id>", "Required in simple mode")
+  .option("--accounting-type-id <id>", "Required in simple mode")
+  .option("--comment <text>", "Optional voucher position comment")
+  .option("--asset", "Mark voucher position as asset", false)
+  .option("--booking-date <date>", "Override booking date")
+  .option("--booking-type <type>", "Booking type", "FULL_PAYMENT")
+  .option("--create-feed", "Set createFeed=true during booking", false)
+  .option("--execute", "Actually upload, create and book", false)
+  .option("--verify", "Run verification after voucher create and booking", false)
+  .option("--x-version <version>", "Optional sevdesk X-Version header")
+  .option("--output <mode>", "pretty|json|raw", "pretty")
+  .action(async (opts) => {
+    if (opts.output !== "pretty" && opts.output !== "json" && opts.output !== "raw") {
+      fail("--output must be pretty|json|raw.");
+    }
+
+    const absoluteFilePath = await ensureReadableFile(String(opts.file));
+    const templateBody = opts.bodyFile ? await readJsonFile(String(opts.bodyFile)) : undefined;
+
+    const config = loadConfig({ xVersion: opts.xVersion });
+    const client = new SevdeskClient(config);
+    const transaction = await fetchTransactionById({
+      client,
+      transactionId: String(opts.transactionId),
+    });
+
+    const voucherPayloadPreview = buildVoucherPayloadForPdfWorkflow({
+      filePath: absoluteFilePath,
+      filename: "__uploaded_on_execute__.pdf",
+      templateBody,
+      supplierId: opts.supplierId,
+      supplierName: opts.supplierName,
+      description: opts.description,
+      voucherDate: opts.voucherDate,
+      deliveryDate: opts.deliveryDate,
+      currency: opts.currency,
+      status: parseIntegerOrFail(String(opts.status), "--status", 0),
+      creditDebit: opts.creditDebit,
+      voucherType: opts.voucherType,
+      taxType: opts.taxType,
+      taxRuleId: opts.taxRuleId,
+      taxRate:
+        opts.taxRate !== undefined
+          ? parseNumberOrFail(String(opts.taxRate), "--tax-rate", 0)
+          : undefined,
+      amount:
+        opts.amount !== undefined
+          ? parseNumberOrFail(String(opts.amount), "--amount", 0)
+          : undefined,
+      net: Boolean(opts.net),
+      accountDatevId: opts.accountDatevId,
+      accountingTypeId: opts.accountingTypeId,
+      comment: opts.comment,
+      isAsset: Boolean(opts.asset),
+    });
+
+    const voucherPreviewPreflight = validateWritePreflight(
+      "voucherFactorySaveVoucher",
+      voucherPayloadPreview
+    );
+    if (voucherPreviewPreflight.errors.length > 0) {
+      fail(
+        [
+          "Preflight validation failed for voucherFactorySaveVoucher:",
+          ...voucherPreviewPreflight.errors.map((error) => `- ${error}`),
+        ].join("\n")
+      );
+    }
+    emitPreflightDiagnostics(
+      "voucherFactorySaveVoucher",
+      voucherPreviewPreflight.warnings,
+      voucherPreviewPreflight.autoFixes
+    );
+
+    const previewPlan = buildBookExistingVoucherPlan({
+      voucher:
+        (voucherPayloadPreview.voucher as Record<string, unknown> | undefined) ??
+        ({} as Record<string, unknown>),
+      transaction,
+      amount:
+        opts.amount !== undefined
+          ? parseNumberOrFail(String(opts.amount), "--amount", 0)
+          : undefined,
+      date: opts.bookingDate ? String(opts.bookingDate) : undefined,
+      type: String(opts.bookingType),
+      createFeed: opts.createFeed ? true : undefined,
+    });
+
+    if (!previewPlan.payload) {
+      fail(
+        [
+          "expense process-paid: unable to derive a valid booking payload.",
+          ...previewPlan.warnings.map((warning) => `- ${warning}`),
+        ].join("\n")
+      );
+    }
+
+    if (!opts.execute) {
+      printPayload(
+        {
+          dryRun: true,
+          filePath: absoluteFilePath,
+          transaction: previewPlan.transaction,
+          warnings: previewPlan.warnings,
+          voucherPayload: voucherPayloadPreview,
+          bookingPayload: previewPlan.payload,
+        },
+        opts.output
+      );
+      return;
+    }
+
+    const upload = await uploadVoucherPdf({
+      client,
+      filePath: absoluteFilePath,
+    });
+    if (!upload.response.ok) {
+      const hints = deriveRemediationHints({
+        operationId: "voucherUploadFile",
+        status: upload.response.status,
+        data: upload.response.data,
+      });
+      await printResponse(upload.response, opts.output, undefined, {
+        workflowPhase: "upload",
+        normalizedUpload: upload.normalizedUpload,
+        remediationHints: hints,
+      });
+      return;
+    }
+
+    const voucherPayload = buildVoucherPayloadForPdfWorkflow({
+      filePath: absoluteFilePath,
+      filename: upload.uploadedFilename,
+      templateBody,
+      supplierId: opts.supplierId,
+      supplierName: opts.supplierName,
+      description: opts.description,
+      voucherDate: opts.voucherDate,
+      deliveryDate: opts.deliveryDate,
+      currency: opts.currency,
+      status: parseIntegerOrFail(String(opts.status), "--status", 0),
+      creditDebit: opts.creditDebit,
+      voucherType: opts.voucherType,
+      taxType: opts.taxType,
+      taxRuleId: opts.taxRuleId,
+      taxRate:
+        opts.taxRate !== undefined
+          ? parseNumberOrFail(String(opts.taxRate), "--tax-rate", 0)
+          : undefined,
+      amount:
+        opts.amount !== undefined
+          ? parseNumberOrFail(String(opts.amount), "--amount", 0)
+          : undefined,
+      net: Boolean(opts.net),
+      accountDatevId: opts.accountDatevId,
+      accountingTypeId: opts.accountingTypeId,
+      comment: opts.comment,
+      isAsset: Boolean(opts.asset),
+    });
+
+    const createResult = await saveVoucherPayload({
+      client,
+      payload: voucherPayload,
+      verify: Boolean(opts.verify),
+    });
+    if (!createResult.response.ok) {
+      await printResponse(createResult.response, opts.output, undefined, {
+        workflowPhase: "create-voucher",
+        normalizedUpload: upload.normalizedUpload,
+        upload: {
+          status: upload.response.status,
+          ...upload.normalizedUpload,
+        },
+        ...createResult.extras,
+      });
+      return;
+    }
+
+    const createdVoucherId =
+      extractPrimaryObject(createResult.response.data)?.voucher &&
+      typeof extractPrimaryObject(createResult.response.data)?.voucher === "object"
+        ? String(
+            (
+              extractPrimaryObject(createResult.response.data)?.voucher as Record<
+                string,
+                unknown
+              >
+            ).id ?? ""
+          ).trim()
+        : String(extractPrimaryObject(createResult.response.data)?.id ?? "").trim();
+    if (!createdVoucherId) {
+      fail("expense process-paid: create-voucher response did not expose a voucher id.");
+    }
+
+    const { voucher } = await readVoucherWithPositions({
+      client,
+      voucherId: createdVoucherId,
+    });
+    const executionPlan = buildBookExistingVoucherPlan({
+      voucher,
+      transaction,
+      date: opts.bookingDate ? String(opts.bookingDate) : undefined,
+      type: String(opts.bookingType),
+      createFeed: opts.createFeed ? true : undefined,
+    });
+    if (!executionPlan.payload) {
+      fail(
+        [
+          "expense process-paid: unable to derive a valid booking payload after voucher creation.",
+          ...executionPlan.warnings.map((warning) => `- ${warning}`),
+        ].join("\n")
+      );
+    }
+
+    const bookResult = await executeBookVoucherWorkflow({
+      client,
+      voucherId: createdVoucherId,
+      payload: executionPlan.payload,
+      verify: Boolean(opts.verify),
+      mode: "assign-and-book",
+    });
+    await printResponse(bookResult.response, opts.output, undefined, {
+      workflowMode: "process-paid-expense",
+      createdVoucherId,
+      normalizedUpload: upload.normalizedUpload,
+      upload: {
+        status: upload.response.status,
+        ...upload.normalizedUpload,
+      },
+      createVoucher: {
+        status: createResult.response.status,
+        verification: createResult.extras.verification ?? null,
+      },
+      voucher: executionPlan.voucher,
+      transaction: executionPlan.transaction,
+      warnings: executionPlan.warnings,
+      ...bookResult.extras,
+    });
+  });
+
 program
   .command("create-voucher-from-pdf")
   .description(
@@ -1840,15 +2508,11 @@ program
 
     const config = loadConfig({ xVersion: opts.xVersion });
     const client = new SevdeskClient(config);
-    const uploadResponse = await client.request({
-      method: "POST",
-      path: "/Voucher/Factory/uploadTempFile",
-      formData: {
-        file: {
-          filePath: absoluteFilePath,
-        },
-      },
+    const upload = await uploadVoucherPdf({
+      client,
+      filePath: absoluteFilePath,
     });
+    const uploadResponse = upload.response;
 
     if (!uploadResponse.ok) {
       const hints = deriveRemediationHints({
@@ -1858,17 +2522,13 @@ program
       });
       await printResponse(uploadResponse, opts.output, undefined, {
         workflowPhase: "upload",
+        normalizedUpload: upload.normalizedUpload,
         remediationHints: hints,
       });
       return;
     }
 
-    const uploadedFilename = extractUploadedFilename(uploadResponse.data);
-    if (!uploadedFilename) {
-      fail(
-        "Voucher upload succeeded but no sevdesk filename was returned. Inspect the raw upload response."
-      );
-    }
+    const uploadedFilename = upload.uploadedFilename;
 
     const payload = buildVoucherPayloadForPdfWorkflow({
       filePath: absoluteFilePath,
@@ -1900,69 +2560,22 @@ program
       isAsset: Boolean(opts.asset),
     });
 
-    const preflight = validateWritePreflight("voucherFactorySaveVoucher", payload);
-    if (preflight.errors.length > 0) {
-      fail(
-        [
-          "Preflight validation failed for voucherFactorySaveVoucher:",
-          ...preflight.errors.map((error) => `- ${error}`),
-        ].join("\n")
-      );
-    }
-    emitPreflightDiagnostics(
-      "voucherFactorySaveVoucher",
-      preflight.warnings,
-      preflight.autoFixes
-    );
-
-    const response = await client.request({
-      method: "POST",
-      path: "/Voucher/Factory/saveVoucher",
-      body: payload,
+    const result = await saveVoucherPayload({
+      client,
+      payload,
+      verify: Boolean(opts.verify),
     });
 
     const extras: Record<string, unknown> = {
       upload: {
         status: uploadResponse.status,
-        filename: uploadedFilename,
-        filePath: absoluteFilePath,
+        ...upload.normalizedUpload,
       },
+      normalizedUpload: upload.normalizedUpload,
+      ...result.extras,
     };
-    if (!response.ok) {
-      const hints = deriveRemediationHints({
-        operationId: "voucherFactorySaveVoucher",
-        status: response.status,
-        data: response.data,
-      });
-      if (hints.length > 0) {
-        extras.remediationHints = hints;
-      }
-    }
 
-    if (opts.verify) {
-      try {
-        const verification = await runWriteVerification({
-          operationId: "voucherFactorySaveVoucher",
-          client,
-          body: payload,
-          writeResponse: response,
-          pathParams: {},
-        });
-        extras.verification =
-          verification ??
-          ({
-            skipped: true,
-            reason: "No built-in verification for voucherFactorySaveVoucher",
-          } as Record<string, unknown>);
-      } catch (error) {
-        extras.verification = {
-          ok: false,
-          error: error instanceof Error ? error.message : String(error),
-        };
-      }
-    }
-
-    await printResponse(response, opts.output, undefined, extras);
+    await printResponse(result.response, opts.output, undefined, extras);
   });
 
 program
@@ -2596,14 +3209,14 @@ program
 
     const config = loadConfig({ xVersion: opts.xVersion });
     const client = new SevdeskClient(config);
-    await executeBookVoucherWorkflow({
+    const result = await executeBookVoucherWorkflow({
       client,
       voucherId: String(opts.voucherId),
       payload,
       verify: Boolean(opts.verify),
-      output: opts.output,
       mode: "book",
     });
+    await printResponse(result.response, opts.output, undefined, result.extras);
   });
 
 program
@@ -2661,14 +3274,14 @@ program
 
     const config = loadConfig({ xVersion: opts.xVersion });
     const client = new SevdeskClient(config);
-    await executeBookVoucherWorkflow({
+    const result = await executeBookVoucherWorkflow({
       client,
       voucherId: String(opts.voucherId),
       payload,
       verify: Boolean(opts.verify),
-      output: opts.output,
       mode: "assign-and-book",
     });
+    await printResponse(result.response, opts.output, undefined, result.extras);
   });
 
 const docs = program.command("docs").description("Documentation helpers");

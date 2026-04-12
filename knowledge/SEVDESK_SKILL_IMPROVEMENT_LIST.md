@@ -192,6 +192,28 @@ Den Ablauf `Kontakt anlegen -> Angebot erstellen -> PDF ausgeben` robust, reprod
   - `voucherFactorySaveVoucher`
   - `bookVoucher`
 
+## Agenten-Ergonomie für Buchungsworkflows (2026-04-12)
+
+- [x] Writes schlagen jetzt auf Shell-Ebene sauber fehl
+  - wenn die HTTP-Antwort `ok: false` ist
+  - oder wenn die eingebaute Verifikation `ok: false` zurückgibt
+- [x] `bookVoucher`-Verifikation pollt jetzt auf Write-Propagation
+  - bis Voucher-Status und `paidAmount` konsistent sind
+  - liefert `attempts` und `pendingWritePropagation`
+- [x] `voucher inspect`
+  - aggregiert Voucher-Header, Summen, Status, Zahlstatus, Dokument und Positionen in einer Antwort
+- [x] `voucher book-existing`
+  - liest bestehenden Voucher und Transaktion
+  - leitet das Booking-Payload daraus ab
+  - dry-run standardmäßig, `--execute` für die echte Buchung
+- [x] `transaction find-match`
+  - semantischer Such-Wrapper für Lieferant/Betrag/Datum/Richtung
+- [x] `transaction list-open-expenses`
+  - schnelle Standardabfrage für offene Ausgabentransaktionen
+- [x] `expense process-paid`
+  - kombiniert PDF-Upload, Voucher-Anlage und Buchung gegen eine bestehende Transaktion
+  - akzeptiert strukturierte Eingaben statt nur rohe Low-Level-Schritte
+
 ## Workflow-Änderung: Delete-only Guard (2026-02-27)
 
 - Bisher: alle non-GET Operationen waren mit Write-Guard blockiert.

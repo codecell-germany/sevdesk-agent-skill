@@ -1,6 +1,6 @@
 {
   "name": "@codecell-germany/sevdesk-agent-skill",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "private": false,
   "description": "Agent-first sevdesk bookkeeping CLI and skill for contacts, quotes, invoices, vouchers, and transaction workflows",
   "keywords": [

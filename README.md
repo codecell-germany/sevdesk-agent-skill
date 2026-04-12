@@ -145,11 +145,36 @@ sevdesk-agent create-voucher-from-pdf \
 ```bash
 sevdesk-agent find-transaction "Adobe" --amount 119 --booked false --output json
 sevdesk-agent match-transaction --voucher-id 901 --output json
+sevdesk-agent transaction find-match --supplier "Adobe" --amount 119 --date 2026-03-10 --direction expense --output json
+sevdesk-agent voucher inspect --id 901 --output json
+sevdesk-agent voucher book-existing \
+  --voucher-id 901 \
+  --transaction-id 100 \
+  --execute \
+  --verify
 sevdesk-agent assign-voucher-to-transaction \
   --voucher-id 901 \
   --check-account-id 5 \
   --transaction-id 100 \
   --amount 119 \
+  --execute \
+  --verify
+```
+
+### Paid expense in one workflow
+
+```bash
+sevdesk-agent expense process-paid \
+  --file /absolute/path/to/adobe-march-2026.pdf \
+  --transaction-id 100 \
+  --supplier-name "Adobe" \
+  --voucher-date 2026-03-10 \
+  --amount 119 \
+  --tax-type default \
+  --tax-rule-id 9 \
+  --tax-rate 19 \
+  --account-datev-id 700 \
+  --accounting-type-id 33 \
   --execute \
   --verify
 ```
@@ -196,7 +221,12 @@ sevdesk-agent invoice recreate \
 - `sevdesk-agent find-invoice <term> ...`
 - `sevdesk-agent find-transaction [term] ...`
 - `sevdesk-agent match-transaction ...`
+- `sevdesk-agent transaction find-match ...`
+- `sevdesk-agent transaction list-open-expenses ...`
 - `sevdesk-agent create-voucher-from-pdf ...`
+- `sevdesk-agent voucher inspect ...`
+- `sevdesk-agent voucher book-existing ...`
+- `sevdesk-agent expense process-paid ...`
 - `sevdesk-agent book-voucher ...`
 - `sevdesk-agent assign-voucher-to-transaction ...`
 - `sevdesk-agent create-invoice-installment ...`
@@ -366,11 +396,36 @@ sevdesk-agent create-voucher-from-pdf \
 ```bash
 sevdesk-agent find-transaction "Adobe" --amount 119 --booked false --output json
 sevdesk-agent match-transaction --voucher-id 901 --output json
+sevdesk-agent transaction find-match --supplier "Adobe" --amount 119 --date 2026-03-10 --direction expense --output json
+sevdesk-agent voucher inspect --id 901 --output json
+sevdesk-agent voucher book-existing \
+  --voucher-id 901 \
+  --transaction-id 100 \
+  --execute \
+  --verify
 sevdesk-agent assign-voucher-to-transaction \
   --voucher-id 901 \
   --check-account-id 5 \
   --transaction-id 100 \
   --amount 119 \
+  --execute \
+  --verify
+```
+
+### Bezahlte Ausgabe in einem Workflow
+
+```bash
+sevdesk-agent expense process-paid \
+  --file /absolute/path/to/adobe-march-2026.pdf \
+  --transaction-id 100 \
+  --supplier-name "Adobe" \
+  --voucher-date 2026-03-10 \
+  --amount 119 \
+  --tax-type default \
+  --tax-rule-id 9 \
+  --tax-rate 19 \
+  --account-datev-id 700 \
+  --accounting-type-id 33 \
   --execute \
   --verify
 ```
@@ -417,7 +472,12 @@ sevdesk-agent invoice recreate \
 - `sevdesk-agent find-invoice <term> ...`
 - `sevdesk-agent find-transaction [term] ...`
 - `sevdesk-agent match-transaction ...`
+- `sevdesk-agent transaction find-match ...`
+- `sevdesk-agent transaction list-open-expenses ...`
 - `sevdesk-agent create-voucher-from-pdf ...`
+- `sevdesk-agent voucher inspect ...`
+- `sevdesk-agent voucher book-existing ...`
+- `sevdesk-agent expense process-paid ...`
 - `sevdesk-agent book-voucher ...`
 - `sevdesk-agent assign-voucher-to-transaction ...`
 - `sevdesk-agent create-invoice-installment ...`

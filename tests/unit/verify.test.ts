@@ -342,7 +342,74 @@ describe("runWriteVerification", () => {
 
     expect(verification?.type).toBe("bookVoucher");
     expect(verification?.ok).toBe(true);
+    expect(verification?.attempts).toBe(1);
+    expect(verification?.pendingWritePropagation).toBe(false);
     expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it("polls bookVoucher verification until voucher state settles", async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: {},
+        data: {
+          objects: {
+            id: "901",
+            status: "100",
+            paidAmount: "0",
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: {},
+        data: {
+          objects: {
+            id: "901",
+            status: "1000",
+            paidAmount: "119",
+          },
+        },
+      });
+
+    const client = { request } as unknown as SevdeskClient;
+    const verification = await runWriteVerification({
+      operationId: "bookVoucher",
+      client,
+      body: {
+        amount: 119,
+        checkAccount: { id: "5", objectName: "CheckAccount" },
+        checkAccountTransaction: {
+          id: "100",
+          objectName: "CheckAccountTransaction",
+        },
+      },
+      writeResponse: {
+        ok: true,
+        status: 200,
+        headers: {},
+        data: {
+          objects: {
+            voucher: { id: "901", objectName: "Voucher" },
+            toStatus: "1000",
+          },
+        },
+      },
+      bookVoucherOptions: {
+        maxAttempts: 2,
+        retryDelayMs: 0,
+        sleepFn: async () => undefined,
+      },
+    });
+
+    expect(verification?.type).toBe("bookVoucher");
+    expect(verification?.ok).toBe(true);
+    expect(verification?.attempts).toBe(2);
+    expect(verification?.pendingWritePropagation).toBe(false);
+    expect(request).toHaveBeenCalledTimes(2);
   });
 
   it("can auto-fix createContact customerNumber mismatch", async () => {

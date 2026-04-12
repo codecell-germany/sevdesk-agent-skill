@@ -69,6 +69,8 @@ If setup is incomplete, install the public package first, verify the token, and 
    - invoice text search: `sevdesk-agent find-invoice <term> --deep-scan --output json`
    - transaction search: `sevdesk-agent find-transaction "<text>" --amount <n> --booked false --output json`
    - voucher-to-transaction matching: `sevdesk-agent match-transaction --voucher-id <id> --output json`
+   - semantic transaction matching: `sevdesk-agent transaction find-match --supplier "<name>" --amount <n> --date <yyyy-mm-dd> --direction expense --output json`
+   - voucher inspection: `sevdesk-agent voucher inspect --id <id> --output json`
    - by default, read responses are normalized for known live API quirks
    - Shell quoting: params like `contact[id]` should be quoted: `--query 'contact[id]=123'`
    - Invoice date filters (observed): in our tests, `getInvoices` works with `startDate`/`endDate` as Unix timestamps (seconds). ISO dates like `2026-01-01` may return empty results.
@@ -116,8 +118,11 @@ If setup is incomplete, install the public package first, verify the token, and 
 - Voucher intake from local PDF:
   - `sevdesk-agent create-voucher-from-pdf --file /absolute/path/to/beleg.pdf ... [--execute --verify]`
 - Voucher booking helpers:
+  - `sevdesk-agent voucher inspect --id <id> --output json`
+  - `sevdesk-agent voucher book-existing --voucher-id <id> --transaction-id <id> [--execute --verify]`
   - `sevdesk-agent book-voucher --voucher-id <id> --check-account-id <id> --amount <n> [--transaction-id <id>] [--execute --verify]`
   - `sevdesk-agent assign-voucher-to-transaction --voucher-id <id> --check-account-id <id> --transaction-id <id> --amount <n> [--execute --verify]`
+  - `sevdesk-agent expense process-paid --file /absolute/path/to/beleg.pdf --transaction-id <id> ... [--execute --verify]`
 - Self-check and command sync:
   - `sevdesk-agent doctor --json`
 
@@ -129,7 +134,9 @@ If setup is incomplete, install the public package first, verify the token, and 
 - use `--decode-pdf <path>` for direct PDF file output without `jq`/`base64`.
 - with `--decode-pdf`, use `--suppress-content` (default) to keep large base64 payload out of CLI output.
 - `create-voucher-from-pdf`, `book-voucher` and `assign-voucher-to-transaction` are dry-run by default; real writes happen only with `--execute`.
+- `voucher book-existing` and `expense process-paid` are also dry-run by default; use `--execute` only after checking the derived payload.
 - `order edit`, `contact edit` and `invoice recreate` execute directly like normal `PUT`/`POST` flows; use `--verify` to validate the result immediately.
+- When a write response or built-in verification returns `ok: false`, the CLI now exits with a non-zero shell status. Do not treat that as success in automation.
 - If the server returns a non-JSON binary content-type (pdf/xml/zip/csv), the CLI prints metadata (`binary`, `bytes`, `contentType`) instead of raw bytes.
 - Runtime-required query quirks are enforced for selected operations (e.g. `contactCustomerNumberAvailabilityCheck` requires `customerNumber` at runtime).
 - Use `op-show` or `ops-quirks` to see operation-specific runtime quirks.

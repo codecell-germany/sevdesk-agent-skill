@@ -38,6 +38,8 @@ sevdesk-agent find-transaction "Adobe" --amount 119 --booked false --output json
 sevdesk-agent read find-transaction --query amount=119 --query booked=false --output json
 sevdesk-agent match-transaction --voucher-id 901 --output json
 sevdesk-agent read match-transaction --query voucherId=901 --output json
+sevdesk-agent transaction find-match --supplier "Adobe" --amount 119 --date 2026-03-10 --direction expense --output json
+sevdesk-agent transaction list-open-expenses --date-from 2026-01-01 --date-to 2026-03-31 --output json
 ```
 
 By default `read` includes:
@@ -133,6 +135,8 @@ sevdesk-agent contact edit \
 
 High-level voucher helpers:
 ```bash
+sevdesk-agent voucher inspect --id 901 --output json
+
 sevdesk-agent create-voucher-from-pdf \
   --file /absolute/path/to/beleg.pdf \
   --supplier-name "Adobe" \
@@ -143,6 +147,12 @@ sevdesk-agent create-voucher-from-pdf \
   --tax-rate 19 \
   --account-datev-id 700 \
   --accounting-type-id 33 \
+  --execute \
+  --verify
+
+sevdesk-agent voucher book-existing \
+  --voucher-id 901 \
+  --transaction-id 100 \
   --execute \
   --verify
 
@@ -159,6 +169,20 @@ sevdesk-agent assign-voucher-to-transaction \
   --check-account-id 5 \
   --transaction-id 100 \
   --amount 119 \
+  --execute \
+  --verify
+
+sevdesk-agent expense process-paid \
+  --file /absolute/path/to/beleg.pdf \
+  --transaction-id 100 \
+  --supplier-name "Adobe" \
+  --voucher-date 2026-03-10 \
+  --amount 119 \
+  --tax-type default \
+  --tax-rule-id 9 \
+  --tax-rate 19 \
+  --account-datev-id 700 \
+  --accounting-type-id 33 \
   --execute \
   --verify
 ```

@@ -62,14 +62,14 @@ describe("skill install helpers", () => {
 
   it("builds an exact global install package spec", () => {
     expect(
-      buildGlobalCliPackageSpec("@codecell-germany/sevdesk-agent-skill", "0.1.10")
-    ).toBe("@codecell-germany/sevdesk-agent-skill@0.1.10");
+      buildGlobalCliPackageSpec("@codecell-germany/sevdesk-agent-skill", "0.1.11")
+    ).toBe("@codecell-germany/sevdesk-agent-skill@0.1.11");
   });
 
   it("normalizes and compares CLI versions", () => {
-    expect(normalizeCliVersion("v0.1.10")).toBe("0.1.10");
-    expect(isInstalledCliVersion("v0.1.10", "0.1.10")).toBe(true);
-    expect(isInstalledCliVersion("0.1.9", "0.1.10")).toBe(false);
+    expect(normalizeCliVersion("v0.1.11")).toBe("0.1.11");
+    expect(isInstalledCliVersion("v0.1.11", "0.1.11")).toBe(true);
+    expect(isInstalledCliVersion("0.1.10", "0.1.11")).toBe(false);
   });
 
   it("derives the npm global bin directory from a prefix", () => {

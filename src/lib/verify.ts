@@ -1,3 +1,5 @@
+import { setTimeout as sleep } from "node:timers/promises";
+
 import type { SevdeskClient } from "./client";
 import type { SevdeskResponse } from "./types";
 
@@ -20,6 +22,14 @@ export interface VerifySummary {
   id: string;
   checks: VerifyCheck[];
   ok: boolean;
+  attempts?: number;
+  pendingWritePropagation?: boolean;
+}
+
+interface BookVoucherVerifyOptions {
+  maxAttempts?: number;
+  retryDelayMs?: number;
+  sleepFn?: (ms: number) => Promise<void>;
 }
 
 export interface ContactVerificationAutoFix {
@@ -766,7 +776,8 @@ async function verifyVoucherFactorySaveVoucher(
 async function verifyBookVoucher(
   client: SevdeskClient,
   body: unknown,
-  writeResponse: SevdeskResponse
+  writeResponse: SevdeskResponse,
+  options: BookVoucherVerifyOptions = {}
 ): Promise<VerifySummary> {
   const voucherId =
     extractCreatedId(writeResponse.data, ["voucher", "objects"]) ??
@@ -778,14 +789,40 @@ async function verifyBookVoucher(
   const requestedTransactionId = toId(asRecord(asRecord(body)?.checkAccountTransaction)?.id);
   const logObject = findPrimaryObject(writeResponse.data) ?? {};
   const expectedToStatus = toId(logObject.toStatus);
+  const maxAttempts = Math.max(1, options.maxAttempts ?? 4);
+  const retryDelayMs = Math.max(0, options.retryDelayMs ?? 750);
+  const sleepFn = options.sleepFn ?? ((ms: number) => sleep(ms));
 
-  const voucherResponse = await client.request({
-    method: "GET",
-    path: `/Voucher/${voucherId}`,
-  });
-  const voucherObject = findPrimaryObject(voucherResponse.data) ?? {};
-  const actualStatus = toId(voucherObject.status);
-  const actualPaidAmount = toNumber(voucherObject.paidAmount);
+  let attempts = 0;
+  let actualStatus = "";
+  let actualPaidAmount: number | null = null;
+  let settled = false;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    attempts = attempt;
+    const voucherResponse = await client.request({
+      method: "GET",
+      path: `/Voucher/${voucherId}`,
+    });
+    const voucherObject = findPrimaryObject(voucherResponse.data) ?? {};
+    actualStatus = toId(voucherObject.status);
+    actualPaidAmount = toNumber(voucherObject.paidAmount);
+
+    const statusOk = expectedToStatus ? expectedToStatus === actualStatus : actualStatus !== "";
+    const paidAmountOk =
+      requestedAmount === null
+        ? actualPaidAmount !== null
+        : actualPaidAmount !== null && actualPaidAmount >= requestedAmount;
+
+    if (statusOk && paidAmountOk) {
+      settled = true;
+      break;
+    }
+
+    if (attempt < maxAttempts) {
+      await sleepFn(retryDelayMs * attempt);
+    }
+  }
 
   const checks: VerifyCheck[] = [];
   checks.push({
@@ -816,11 +853,21 @@ async function verifyBookVoucher(
       : "no transaction id requested",
   });
 
+  if (!settled && maxAttempts > 1) {
+    checks.push({
+      check: "writePropagation",
+      ok: false,
+      detail: `voucher state did not settle after ${attempts} verification read(s)`,
+    });
+  }
+
   return {
     type: "bookVoucher",
     id: voucherId,
     checks,
     ok: checks.every((check) => check.ok),
+    attempts,
+    pendingWritePropagation: !settled,
   };
 }
 
@@ -830,6 +877,7 @@ export async function runWriteVerification(options: {
   body: unknown;
   writeResponse: SevdeskResponse;
   pathParams?: Record<string, string>;
+  bookVoucherOptions?: BookVoucherVerifyOptions;
 }): Promise<VerifySummary | null> {
   if (options.operationId === "createContact") {
     return verifyCreateContact(options.client, options.body, options.writeResponse);
@@ -882,7 +930,12 @@ export async function runWriteVerification(options: {
   }
 
   if (options.operationId === "bookVoucher") {
-    return verifyBookVoucher(options.client, options.body, options.writeResponse);
+    return verifyBookVoucher(
+      options.client,
+      options.body,
+      options.writeResponse,
+      options.bookVoucherOptions
+    );
   }
 
   return null;
