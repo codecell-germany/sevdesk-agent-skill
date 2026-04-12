@@ -1,6 +1,6 @@
 ---
 name: sevdesk-agent-cli
-description: "Sevdesk: invoices/quotes/contacts via a read-first CLI (DELETE-guarded) + context snapshots for agent handoffs."
+description: "Sevdesk bookkeeping automation via a global CLI, with read-first discovery, voucher intake, transaction matching, invoice/order/contact workflows, and delete-guarded mutations."
 ---
 
 # sevdesk-agent-cli
@@ -8,6 +8,9 @@ description: "Sevdesk: invoices/quotes/contacts via a read-first CLI (DELETE-gua
 ## When to use
 Use this skill when tasks involve sevdesk API access from this workspace, especially when an agent must:
 - inspect business/accounting state via read-only endpoints,
+- search contacts, invoices, vouchers, or transactions without improvising raw API filters,
+- create or update contacts, quotes, invoices, and vouchers through typed workflows,
+- match vouchers against bank transactions and prepare or execute bookings,
 - execute write endpoints quickly while keeping DELETE operations explicitly guarded,
 - produce a context snapshot for later agent runs.
 
@@ -21,12 +24,32 @@ Use this skill when tasks involve sevdesk API access from this workspace, especi
   - add `<prefix>/bin` to `PATH` for the current shell if needed
 - Temporary fallback without global install:
   - `npx -y -p @codecell-germany/sevdesk-agent-skill sevdesk-agent --help`
+- For skill-aware agent environments, install the skill payload explicitly:
+  - `sevdesk-agent-skill install --force`
 - API token is available in env:
   - `SEVDESK_API_TOKEN=<token>`
 - Optional env:
   - `SEVDESK_BASE_URL` (default `https://my.sevdesk.de/api/v1`)
   - `SEVDESK_USER_AGENT`
-  - `SEVDESK_ALLOW_WRITE=true` (required only for `DELETE` operations, unless `--allow-write` is used)
+- `SEVDESK_ALLOW_WRITE=true` (required only for `DELETE` operations, unless `--allow-write` is used)
+
+## First-run detection
+Run this before the first real bookkeeping workflow on a machine:
+
+```bash
+sevdesk-agent --help
+sevdesk-agent doctor --json
+sevdesk-agent read bookkeepingSystemVersion --output json
+```
+
+Treat the environment as not ready if any of these are true:
+
+- `sevdesk-agent` is not available on `PATH`
+- `SEVDESK_API_TOKEN` is missing
+- `doctor` reports a failed check
+- `bookkeepingSystemVersion` cannot be read successfully
+
+If setup is incomplete, install the public package first, verify the token, and only then continue to `read`, `find-*`, or write workflows.
 
 ## Core workflow
 1. Discover operation ids:
