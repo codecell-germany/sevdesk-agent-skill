@@ -358,3 +358,25 @@ Quelle: direktes Praxis-Feedback zu robusteren Rechnungs-/Kontakt-Workflows.
   - `skills/sevdesk-agent-cli/SKILL.md` ergänzt
   - Cheatsheet ergänzt
   - `knowledge/SEVDESK_EDIT_CAPABILITY_GUIDE.md` auf Umsetzungsstand aktualisiert
+
+## Öffentliche Produktform und Release-Hygiene (2026-04-12)
+
+- [x] README auf aktuelles CodeCell-Muster nachgezogen
+  - klare Public Surface
+  - Install + Verify + First Run weiter nach oben gezogen
+  - bessere Abgrenzung zwischen CLI und Skill-Installer
+
+- [x] npm-Metadaten modernisiert
+  - aussagekräftigere Paketbeschreibung
+  - `keywords`, `repository`, `homepage`, `bugs`
+
+- [x] Skill-Kurzbeschreibung verbreitert
+  - Listing beschreibt jetzt nicht mehr nur Kontakte/Angebote/Rechnungen
+  - Voucher-, Matching- und Buchungs-Workflows werden als Teil der Produktoberfläche sichtbar
+
+- [x] `prepack` gehärtet
+  - Build + Unit-Tests + Doku-Refresh laufen vor dem Packen
+
+- [x] npm-Dateiliste entschlackt
+  - interne Prozess-/Publishing-Dokumente fliegen aus dem Paket
+  - nur produktrelevante Artefakte bleiben in der öffentlichen npm-Auslieferung

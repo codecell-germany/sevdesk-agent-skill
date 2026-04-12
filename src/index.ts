@@ -1037,7 +1037,7 @@ const program = new Command();
 program
   .name("sevdesk-agent")
   .description("Agent-focused sevdesk CLI (TypeScript)")
-  .version("0.1.9")
+  .version("0.1.10")
   .addHelpText(
     "after",
     [

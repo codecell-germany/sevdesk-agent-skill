@@ -3,6 +3,7 @@
 ## Bootstrap
 ```bash
 npm install -g @codecell-germany/sevdesk-agent-skill
+sevdesk-agent-skill install --force
 sevdesk-agent --help
 ```
 
