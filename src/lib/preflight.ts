@@ -605,8 +605,8 @@ function validateVoucherFactorySaveVoucher(body: unknown): ValidationResult {
 
     const accountingType = asRecord(pos.accountingType);
     if (!accountingType || !String(accountingType.id ?? "").trim()) {
-      errors.push(
-        `voucherFactorySaveVoucher: voucherPosSave[${index}].accountingType.id is required.`
+      warnings.push(
+        `voucherFactorySaveVoucher: voucherPosSave[${index}].accountingType.id is missing. Some sevdesk payloads still work without it, but reference-based reuse is safer.`
       );
     }
 
@@ -658,8 +658,12 @@ function validateBookVoucher(body: unknown): ValidationResult {
   }
 
   const amount = toNumber(payload.amount);
-  if (amount === null || amount <= 0) {
-    errors.push("bookVoucher: `amount` must be a number > 0.");
+  if (amount === null || amount === 0) {
+    errors.push("bookVoucher: `amount` must be a non-zero number.");
+  } else if (amount < 0) {
+    warnings.push(
+      "bookVoucher: negative `amount` detected. This is valid for some expense bookings against negative bank/card transactions."
+    );
   }
 
   if (!parseDateLike(payload.date)) {
@@ -681,6 +685,25 @@ function validateBookVoucher(body: unknown): ValidationResult {
   if (checkAccountTransaction && !String(checkAccountTransaction.id ?? "").trim()) {
     errors.push(
       "bookVoucher: `checkAccountTransaction.id` is required when a transaction object is provided."
+    );
+  }
+
+  const differenceAmount = toNumber(payload.differenceAmount);
+  if (differenceAmount !== null && differenceAmount < 0) {
+    errors.push("bookVoucher: `differenceAmount` must be >= 0 when provided.");
+  }
+
+  const feeAmount = toNumber(payload.feeAmount);
+  if (feeAmount !== null && feeAmount < 0) {
+    errors.push("bookVoucher: `feeAmount` must be >= 0 when provided.");
+  }
+
+  if (
+    (differenceAmount !== null || feeAmount !== null) &&
+    !String(payload.differenceReason ?? "").trim()
+  ) {
+    warnings.push(
+      "bookVoucher: a difference or fee amount was provided without `differenceReason`. The API may reject this payload."
     );
   }
 

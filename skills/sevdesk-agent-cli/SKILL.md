@@ -70,6 +70,8 @@ If setup is incomplete, install the public package first, verify the token, and 
    - transaction search: `sevdesk-agent find-transaction "<text>" --amount <n> --booked false --output json`
    - voucher-to-transaction matching: `sevdesk-agent match-transaction --voucher-id <id> --output json`
    - semantic transaction matching: `sevdesk-agent transaction find-match --supplier "<name>" --amount <n> --date <yyyy-mm-dd> --direction expense --output json`
+   - account guidance: `sevdesk-agent accounting resolve --account-number 4210 --scope expense --output json`
+   - tax-rule guidance: `sevdesk-agent accounting resolve-tax-rule --tax-rule 1 --output json`
    - voucher inspection: `sevdesk-agent voucher inspect --id <id> --output json`
    - by default, read responses are normalized for known live API quirks
    - Shell quoting: params like `contact[id]` should be quoted: `--query 'contact[id]=123'`
@@ -116,13 +118,14 @@ If setup is incomplete, install the public package first, verify the token, and 
 - Safe invoice replacement when generic invoice mutation is not available:
   - `sevdesk-agent invoice recreate --from <id> --patch-file payloads/invoice.patch.json --verify`
 - Voucher intake from local PDF:
-  - `sevdesk-agent create-voucher-from-pdf --file /absolute/path/to/beleg.pdf ... [--execute --verify]`
+  - `sevdesk-agent create-voucher-from-pdf --file /absolute/path/to/beleg.pdf --reference-voucher-id <id> --policy gross-fallback ... [--execute --verify]`
 - Voucher booking helpers:
   - `sevdesk-agent voucher inspect --id <id> --output json`
-  - `sevdesk-agent voucher book-existing --voucher-id <id> --transaction-id <id> [--execute --verify]`
-  - `sevdesk-agent book-voucher --voucher-id <id> --check-account-id <id> --amount <n> [--transaction-id <id>] [--execute --verify]`
-  - `sevdesk-agent assign-voucher-to-transaction --voucher-id <id> --check-account-id <id> --transaction-id <id> --amount <n> [--execute --verify]`
-  - `sevdesk-agent expense process-paid --file /absolute/path/to/beleg.pdf --transaction-id <id> ... [--execute --verify]`
+  - `sevdesk-agent voucher book-existing --voucher-id <id> --transaction-id <id> --direction expense [--execute --verify]`
+  - `sevdesk-agent book-voucher --voucher-id <id> --check-account-id <id> --amount <n> --direction expense [--transaction-id <id>] [--difference-reason payment-fees --difference-amount 2.95] [--execute --verify]`
+  - `sevdesk-agent assign-voucher-to-transaction --voucher-id <id> --check-account-id <id> --transaction-id <id> --amount <n> --direction expense [--execute --verify]`
+  - `sevdesk-agent expense process-paid --file /absolute/path/to/beleg.pdf --transaction-id <id> --reference-voucher-id <id> --policy gross-fallback --direction expense ... [--execute --verify]`
+  - Special-case escalation: `sevdesk-agent expense process-paid --file /absolute/path/to/reparatur.pdf --transaction-id <id> --policy damage-settlement --output json`
 - Self-check and command sync:
   - `sevdesk-agent doctor --json`
 
@@ -135,6 +138,12 @@ If setup is incomplete, install the public package first, verify the token, and 
 - with `--decode-pdf`, use `--suppress-content` (default) to keep large base64 payload out of CLI output.
 - `create-voucher-from-pdf`, `book-voucher` and `assign-voucher-to-transaction` are dry-run by default; real writes happen only with `--execute`.
 - `voucher book-existing` and `expense process-paid` are also dry-run by default; use `--execute` only after checking the derived payload.
+- `book-voucher`, `assign-voucher-to-transaction`, `voucher book-existing` and `expense process-paid` support `--direction auto|expense|revenue`. For negative bank/card transactions, `--direction expense` is usually the safe default.
+- `expense process-paid` supports `--reference-voucher-id` to derive account/tax defaults from a known good voucher.
+- `expense process-paid --policy actual-eur-charge` uses the absolute transaction amount as the gross voucher amount when no explicit amount is given.
+- `expense process-paid --policy gross-fallback` detects 0,01-EUR drift between net-derived gross and the actual transaction amount and switches to gross mode automatically.
+- `expense process-paid --policy damage-settlement` intentionally returns a manual-UI escalation instead of improvising a fragile automation path.
+- `book-voucher` and related helpers can forward `differenceReason`, `differenceAmount` and `feeAmount` for payment-fee or small-difference cases. Treat this as sevdesk-version dependent and verify the result immediately.
 - `order edit`, `contact edit` and `invoice recreate` execute directly like normal `PUT`/`POST` flows; use `--verify` to validate the result immediately.
 - When a write response or built-in verification returns `ok: false`, the CLI now exits with a non-zero shell status. Do not treat that as success in automation.
 - If the server returns a non-JSON binary content-type (pdf/xml/zip/csv), the CLI prints metadata (`binary`, `bytes`, `contentType`) instead of raw bytes.

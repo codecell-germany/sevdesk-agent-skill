@@ -7,6 +7,8 @@ import {
   buildTransactionMatchCriteriaFromVoucher,
   buildVoucherPayloadFromArgs,
   buildVoucherPayloadFromTemplate,
+  deriveReferenceVoucherDefaults,
+  detectWorkflowEscalation,
   extractUploadedFileMetadata,
   extractUploadedFilename,
   matchTransactions,
@@ -112,6 +114,31 @@ describe("voucher workflow helpers", () => {
     expect(matches[0].score).toBeGreaterThan(matches[1].score);
   });
 
+  it("matches expense transactions by absolute amount", () => {
+    const matches = matchTransactions(
+      [
+        {
+          id: "100",
+          amount: -119,
+          valueDate: "2026-03-10",
+          payeePayerName: "Adobe Ireland Ltd",
+          paymtPurpose: "Adobe Creative Cloud",
+          status: 100,
+          checkAccount: { id: "5", objectName: "CheckAccount" },
+        },
+      ],
+      {
+        amount: 119,
+        counterpart: "Adobe",
+        voucherDate: "2026-03-10",
+      },
+      5
+    );
+
+    expect(matches[0].id).toBe("100");
+    expect(matches[0].reasons).toContain("amount:exact");
+  });
+
   it("builds transaction matching criteria and booking payload", () => {
     const criteria = buildTransactionMatchCriteriaFromVoucher(
       {
@@ -186,6 +213,7 @@ describe("voucher workflow helpers", () => {
       voucher: {
         id: "901",
         status: "100",
+        creditDebit: "D",
         sumGross: "11.90",
         paidAmount: "0",
       },
@@ -201,12 +229,72 @@ describe("voucher workflow helpers", () => {
     });
 
     expect(plan.payload).toEqual({
-      amount: 11.9,
+      amount: -11.9,
       date: "2026-03-11",
       type: "FULL_PAYMENT",
       checkAccount: { id: "5", objectName: "CheckAccount" },
       checkAccountTransaction: { id: "100", objectName: "CheckAccountTransaction" },
     });
+    expect(plan.direction).toBe("expense");
     expect(plan.warnings).toHaveLength(0);
+  });
+
+  it("keeps explicit negative amounts and includes difference fields", () => {
+    const payload = buildBookVoucherPayload({
+      amount: -11.9,
+      date: "2026-03-11",
+      type: "FULL_PAYMENT",
+      checkAccountId: "5",
+      transactionId: "100",
+      differenceReason: "payment-fees",
+      differenceAmount: 2.95,
+    });
+
+    expect(payload).toEqual({
+      amount: -11.9,
+      date: "2026-03-11",
+      type: "FULL_PAYMENT",
+      checkAccount: { id: "5", objectName: "CheckAccount" },
+      checkAccountTransaction: { id: "100", objectName: "CheckAccountTransaction" },
+      differenceReason: "payment-fees",
+      differenceAmount: 2.95,
+      feeAmount: 2.95,
+    });
+  });
+
+  it("derives defaults from a reference voucher", () => {
+    const defaults = deriveReferenceVoucherDefaults(
+      {
+        id: "901",
+        supplier: { id: "77", name: "IONOS SE" },
+        creditDebit: "D",
+        voucherType: "VOU",
+        taxType: "default",
+        taxRule: { id: "9", objectName: "TaxRule" },
+      },
+      [
+        {
+          accountDatev: { id: "700", name: "Hosting", number: "4210" },
+          accountingType: { id: "33", name: "Hosting", number: "4210" },
+          taxRate: "19",
+          net: false,
+          comment: "Monatsrechnung",
+        },
+      ]
+    );
+
+    expect(defaults.accountDatevId).toBe("700");
+    expect(defaults.accountingTypeId).toBe("33");
+    expect(defaults.taxRuleId).toBe("9");
+  });
+
+  it("detects manual damage-settlement escalation", () => {
+    const escalation = detectWorkflowEscalation({
+      supplierName: "Versicherung AG",
+      transactionPurpose: "Umsatzsteuerausgleich 1412600120804",
+    });
+
+    expect(escalation?.type).toBe("manual-ui-damage-settlement");
+    expect(escalation?.manualUiRequired).toBe(true);
   });
 });

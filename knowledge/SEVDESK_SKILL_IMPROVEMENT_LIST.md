@@ -402,3 +402,47 @@ Quelle: direktes Praxis-Feedback zu robusteren Rechnungs-/Kontakt-Workflows.
 - [x] npm-Dateiliste entschlackt
   - interne Prozess-/Publishing-Dokumente fliegen aus dem Paket
   - nur produktrelevante Artefakte bleiben in der öffentlichen npm-Auslieferung
+
+## Buchhalter-Feedback Runde 2 (2026-04-14)
+
+- [x] Richtungslogik für Buchungen gegen negative Bank-/Kartenbewegungen verbessert
+  - `voucher book-existing`, `book-voucher`, `assign-voucher-to-transaction` und `expense process-paid` unterstützen jetzt `--direction auto|expense|revenue`
+  - `book-existing` leitet das Vorzeichen standardmäßig aus Transaktion und `creditDebit` ab
+  - `transaction find-match` bewertet Beträge jetzt auch absolut, damit negative Feed-Transaktionen zu positiven Voucher-Summen passen
+
+- [x] `bookVoucher`-Preflight für reale Ausgabenbuchungen geöffnet
+  - negative Beträge sind nicht mehr pauschal blockiert
+  - Differenz-/Gebührenfelder werden validiert
+  - fehlendes `accountingType.id` ist bei Voucher-Erstellung jetzt Warnung statt Hard-Block
+
+- [x] `bookVoucher`-Verify gegen falsche Negativzustände gehärtet
+  - prüft jetzt Betragshöhe über Absolutwert
+  - markiert negative `paidAmount` explizit als Fehlzustand
+  - `pendingWritePropagation` bleibt erhalten
+
+- [x] Gebühren-/Differenzfelder an High-Level-Buchungsbefehlen ergänzt
+  - `differenceReason`
+  - `differenceAmount`
+  - `feeAmount`
+  - nutzbar in `book-voucher`, `assign-voucher-to-transaction`, `voucher book-existing`, `expense process-paid`
+
+- [x] Neue Kontierungs-Resolver ergänzt
+  - `sevdesk-agent accounting resolve --account-number ...`
+  - `sevdesk-agent accounting resolve --account-datev-id ...`
+  - `sevdesk-agent accounting resolve-tax-rule --tax-rule ...`
+  - `forAccountNumber` fällt bei Fehlern automatisch auf `forExpense` / `forRevenue` / `forAllAccounts` zurück
+
+- [x] Referenzvoucher- und Policy-Unterstützung für bezahlte Ausgaben ergänzt
+  - `expense process-paid --reference-voucher-id <id>`
+  - `--policy actual-eur-charge`
+  - `--policy gross-fallback`
+  - 0,01-EUR-Drift zwischen netto abgeleiteter Bruttosumme und Transaktion wird erkannt und kann automatisch auf Bruttologik wechseln
+
+- [x] Semantische Eskalation für Schaden-/Versicherungsfälle ergänzt
+  - `--policy damage-settlement` liefert bewusst einen `manual-ui-damage-settlement`-Block statt einen fragilen Automatisierungsversuch
+  - ähnliche Muster (`Umsatzsteuerausgleich`, `Versicherung`, `Schadensersatz`, `Entschädigung`) werden in der Workflow-Logik und Remediation besonders markiert
+
+- [x] Öffentliche Doku und Skill auf den neuen Buchungsmodus synchronisiert
+  - README ergänzt um Direction-, Resolver-, Gebühren- und Sonderfall-Beispiele
+  - `skills/sevdesk-agent-cli/SKILL.md` beschreibt die Richtungsauswahl, Referenzvoucher-Nutzung und den manuellen Eskalationspfad jetzt explizit
+  - Cheatsheet und Agent-Prompt aktualisiert

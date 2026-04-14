@@ -812,9 +812,12 @@ async function verifyBookVoucher(
     const paidAmountOk =
       requestedAmount === null
         ? actualPaidAmount !== null
-        : actualPaidAmount !== null && actualPaidAmount >= requestedAmount;
+        : actualPaidAmount !== null &&
+          Math.abs(actualPaidAmount) >= Math.abs(requestedAmount);
+    const paidAmountDirectionOk =
+      actualPaidAmount === null ? false : actualPaidAmount >= 0;
 
-    if (statusOk && paidAmountOk) {
+    if (statusOk && paidAmountOk && paidAmountDirectionOk) {
       settled = true;
       break;
     }
@@ -838,11 +841,21 @@ async function verifyBookVoucher(
     ok:
       requestedAmount === null
         ? actualPaidAmount !== null
-        : actualPaidAmount !== null && actualPaidAmount >= requestedAmount,
+        : actualPaidAmount !== null &&
+          Math.abs(actualPaidAmount) >= Math.abs(requestedAmount),
     detail:
       requestedAmount === null
         ? `actual=${actualPaidAmount ?? "(n/a)"}`
-        : `requested>=${requestedAmount.toFixed(2)} actual=${actualPaidAmount?.toFixed(2) ?? "(n/a)"}`,
+        : `requestedMagnitude>=${Math.abs(requestedAmount).toFixed(2)} actual=${actualPaidAmount?.toFixed(2) ?? "(n/a)"}`,
+  });
+
+  checks.push({
+    check: "paidAmountDirection",
+    ok: actualPaidAmount === null ? false : actualPaidAmount >= 0,
+    detail:
+      actualPaidAmount === null
+        ? "actual=(n/a)"
+        : `actual=${actualPaidAmount.toFixed(2)} expected>=0`,
   });
 
   checks.push({

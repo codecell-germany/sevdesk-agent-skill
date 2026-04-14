@@ -169,10 +169,14 @@ export function buildVoucherPayloadFromArgs(
           id: options.accountDatevId,
           objectName: "AccountDatev",
         },
-        accountingType: {
-          id: options.accountingTypeId,
-          objectName: "AccountingType",
-        },
+        ...(options.accountingTypeId
+          ? {
+              accountingType: {
+                id: options.accountingTypeId,
+                objectName: "AccountingType",
+              },
+            }
+          : {}),
         taxRate: options.taxRate,
         net: options.net,
         sumNet: netAmount,
@@ -239,6 +243,41 @@ export interface TransactionCandidate {
   checkAccountId: string | null;
 }
 
+export type BookingDirection = "auto" | "expense" | "revenue";
+export type ExpenseWorkflowPolicy =
+  | "auto"
+  | "actual-eur-charge"
+  | "gross-fallback"
+  | "damage-settlement";
+
+export interface WorkflowEscalation {
+  type: string;
+  title: string;
+  reason: string;
+  manualUiRequired: boolean;
+  uiChecklist: string[];
+}
+
+export interface ReferenceVoucherDefaults {
+  voucherId: string | null;
+  supplierId: string | null;
+  supplierName: string | null;
+  creditDebit: string | null;
+  voucherType: string | null;
+  taxType: string | null;
+  taxRuleId: string | null;
+  taxRate: number | null;
+  net: boolean | null;
+  accountDatevId: string | null;
+  accountDatevNumber: string | null;
+  accountDatevName: string | null;
+  accountingTypeId: string | null;
+  accountingTypeNumber: string | null;
+  accountingTypeName: string | null;
+  comment: string | null;
+  isAsset: boolean;
+}
+
 export interface VoucherInspectPositionSummary {
   id: string | null;
   accountDatev: {
@@ -293,6 +332,8 @@ export interface VoucherInspectSummary {
 
 export interface ExistingVoucherBookingPlan {
   payload: Record<string, unknown> | null;
+  direction: "expense" | "revenue" | null;
+  signedAmount: number | null;
   voucher: {
     id: string;
     status: string | null;
@@ -305,9 +346,11 @@ export interface ExistingVoucherBookingPlan {
     amount: number | null;
     valueDate: string | null;
     payeePayerName: string | null;
+    paymtPurpose: string | null;
     checkAccountId: string | null;
   };
   warnings: string[];
+  escalation: WorkflowEscalation | null;
 }
 
 function statusLabel(status: string | null): string | null {
@@ -321,6 +364,117 @@ function statusLabel(status: string | null): string | null {
     default:
       return status || null;
   }
+}
+
+function normalizeSignedAmount(value: number): number {
+  return roundMoney(value);
+}
+
+function inferDirectionFromInputs(options: {
+  direction?: BookingDirection;
+  transactionAmount?: number | null;
+  creditDebit?: string | null;
+}): "expense" | "revenue" | null {
+  if (options.direction === "expense" || options.direction === "revenue") {
+    return options.direction;
+  }
+
+  if (typeof options.transactionAmount === "number" && options.transactionAmount !== 0) {
+    return options.transactionAmount < 0 ? "expense" : "revenue";
+  }
+
+  const creditDebit = toText(options.creditDebit).toUpperCase();
+  if (creditDebit === "D") {
+    return "expense";
+  }
+  if (creditDebit === "C") {
+    return "revenue";
+  }
+
+  return null;
+}
+
+function applyDirectionToAmount(options: {
+  amount: number;
+  direction?: BookingDirection;
+  transactionAmount?: number | null;
+  creditDebit?: string | null;
+  explicitAmount?: boolean;
+}): { amount: number; direction: "expense" | "revenue" | null } {
+  const inferredDirection = inferDirectionFromInputs(options);
+  if (options.explicitAmount && (!options.direction || options.direction === "auto")) {
+    return {
+      amount: normalizeSignedAmount(options.amount),
+      direction: inferredDirection,
+    };
+  }
+
+  const absoluteAmount = Math.abs(options.amount);
+  if (inferredDirection === "expense") {
+    return {
+      amount: normalizeSignedAmount(-absoluteAmount),
+      direction: inferredDirection,
+    };
+  }
+  if (inferredDirection === "revenue") {
+    return {
+      amount: normalizeSignedAmount(absoluteAmount),
+      direction: inferredDirection,
+    };
+  }
+
+  return {
+    amount: normalizeSignedAmount(options.amount),
+    direction: null,
+  };
+}
+
+function collectSpecialCaseText(parts: Array<string | null | undefined>): string {
+  return parts
+    .map((part) => toText(part))
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+export function detectWorkflowEscalation(options: {
+  policy?: ExpenseWorkflowPolicy;
+  supplierName?: string | null;
+  description?: string | null;
+  transactionPurpose?: string | null;
+  transactionName?: string | null;
+}): WorkflowEscalation | null {
+  const joined = collectSpecialCaseText([
+    options.policy,
+    options.supplierName,
+    options.description,
+    options.transactionPurpose,
+    options.transactionName,
+  ]);
+
+  if (
+    options.policy === "damage-settlement" ||
+    joined.includes("umsatzsteuerausgleich") ||
+    joined.includes("versicherung") ||
+    joined.includes("schadensersatz") ||
+    joined.includes("entschädigung")
+  ) {
+    return {
+      type: "manual-ui-damage-settlement",
+      title: "Manual UI required for damage settlement",
+      reason:
+        "This looks like a damage/insurance settlement pattern. In practice these cases are fachlich clear, but sevdesk API booking is not robust enough here.",
+      manualUiRequired: true,
+      uiChecklist: [
+        "Create or verify the full repair voucher with the correct VAT treatment.",
+        "Create the separate compensation or non-taxable offset in the sevdesk UI if needed.",
+        "Book both parts manually until the remaining bank effect matches the actual VAT or residual amount.",
+        "Re-read voucher and transaction states afterwards to confirm the final saldo.",
+      ],
+    };
+  }
+
+  return null;
 }
 
 function summarizeAccountRef(value: unknown): {
@@ -407,6 +561,39 @@ export function summarizeVoucherInspect(
   };
 }
 
+export function deriveReferenceVoucherDefaults(
+  voucher: Record<string, unknown>,
+  positions: Record<string, unknown>[]
+): ReferenceVoucherDefaults {
+  const supplier = asRecord(voucher.supplier);
+  const firstPosition = positions[0] ? asRecord(positions[0]) : null;
+  const accountDatev = asRecord(firstPosition?.accountDatev);
+  const accountingType = asRecord(firstPosition?.accountingType);
+  const taxRule = asRecord(voucher.taxRule);
+
+  return {
+    voucherId: toId(voucher.id) || null,
+    supplierId: toId(supplier?.id) || null,
+    supplierName: toText(voucher.supplierName) || toText(supplier?.name) || null,
+    creditDebit: toText(voucher.creditDebit) || null,
+    voucherType: toText(voucher.voucherType) || null,
+    taxType: toText(voucher.taxType) || null,
+    taxRuleId: toId(taxRule?.id) || null,
+    taxRate: toNumber(firstPosition?.taxRate),
+    net: typeof firstPosition?.net === "boolean" ? firstPosition.net : null,
+    accountDatevId: toId(accountDatev?.id) || null,
+    accountDatevNumber:
+      toText(accountDatev?.number) || toText(accountDatev?.accountNumber) || null,
+    accountDatevName: toText(accountDatev?.name) || null,
+    accountingTypeId: toId(accountingType?.id) || null,
+    accountingTypeNumber:
+      toText(accountingType?.number) || toText(accountingType?.accountNumber) || null,
+    accountingTypeName: toText(accountingType?.name) || null,
+    comment: toText(firstPosition?.comment) || null,
+    isAsset: firstPosition?.isAsset === true,
+  };
+}
+
 export function buildBookExistingVoucherPlan(options: {
   voucher: Record<string, unknown>;
   transaction: Record<string, unknown>;
@@ -414,19 +601,56 @@ export function buildBookExistingVoucherPlan(options: {
   date?: string;
   type: string;
   createFeed?: boolean;
+  direction?: BookingDirection;
+  differenceReason?: string;
+  differenceAmount?: number;
+  feeAmount?: number;
 }): ExistingVoucherBookingPlan {
   const voucherAmount = toNumber(options.voucher.sumGross);
   const transactionAmount = toNumber(options.transaction.amount);
-  const resolvedAmount =
+  const derivedBaseAmount =
+    voucherAmount ?? (transactionAmount !== null ? Math.abs(transactionAmount) : null);
+  const amountPlan =
     typeof options.amount === "number"
-      ? options.amount
-      : voucherAmount ?? (transactionAmount !== null ? Math.abs(transactionAmount) : null);
+      ? applyDirectionToAmount({
+          amount: options.amount,
+          direction: options.direction,
+          transactionAmount,
+          creditDebit: toText(options.voucher.creditDebit) || null,
+          explicitAmount: true,
+        })
+      : derivedBaseAmount === null
+        ? {
+            amount: null,
+            direction: inferDirectionFromInputs({
+              direction: options.direction,
+              transactionAmount,
+              creditDebit: toText(options.voucher.creditDebit) || null,
+            }),
+          }
+        : applyDirectionToAmount({
+            amount: derivedBaseAmount,
+            direction: options.direction,
+            transactionAmount,
+            creditDebit: toText(options.voucher.creditDebit) || null,
+            explicitAmount: false,
+          });
+  const resolvedAmount = amountPlan.amount;
   const valueDate = toText(options.transaction.valueDate) || null;
   const checkAccountId = toId(asRecord(options.transaction.checkAccount)?.id) || null;
   const warnings: string[] = [];
+  const escalation = detectWorkflowEscalation({
+    supplierName:
+      toText(options.voucher.supplierName) ||
+      toText(asRecord(options.voucher.supplier)?.name) ||
+      null,
+    description: toText(options.voucher.description) || null,
+    transactionPurpose: toText(options.transaction.paymtPurpose) || null,
+    transactionName: toText(options.transaction.payeePayerName) || null,
+  });
 
-  if (resolvedAmount === null || resolvedAmount <= 0) {
-    warnings.push("Unable to derive a positive booking amount from voucher or transaction.");
+  if (resolvedAmount === null || resolvedAmount === 0) {
+    warnings.push("Unable to derive a non-zero booking amount from voucher or transaction.");
   }
 
   if (!checkAccountId) {
@@ -439,6 +663,10 @@ export function buildBookExistingVoucherPlan(options: {
       warnings.push(
         `Voucher gross (${voucherAmount.toFixed(2)}) and transaction amount (${Math.abs(transactionAmount).toFixed(2)}) differ by ${delta.toFixed(2)}.`
       );
+    } else if (delta > 0 && delta <= 0.01) {
+      warnings.push(
+        `Voucher gross and transaction amount drift by ${delta.toFixed(2)}. If booking fails, retry in gross mode or with the actual charged amount.`
+      );
     }
   }
 
@@ -446,8 +674,24 @@ export function buildBookExistingVoucherPlan(options: {
     warnings.push("Voucher already appears paid/booked (status=1000).");
   }
 
+  if (
+    typeof options.amount === "number" &&
+    (!options.direction || options.direction === "auto") &&
+    transactionAmount !== null &&
+    transactionAmount < 0 &&
+    options.amount > 0
+  ) {
+    warnings.push(
+      "Transaction amount is negative. If this is an expense booking, pass a negative amount or set `--direction expense`."
+    );
+  }
+
+  if (escalation) {
+    warnings.push(`${escalation.title}. ${escalation.reason}`);
+  }
+
   const payload =
-    resolvedAmount !== null && resolvedAmount > 0 && checkAccountId
+    resolvedAmount !== null && resolvedAmount !== 0 && checkAccountId
       ? buildBookVoucherPayload({
           amount: resolvedAmount,
           date: options.date || valueDate || formatDateISO(new Date()),
@@ -455,11 +699,17 @@ export function buildBookExistingVoucherPlan(options: {
           checkAccountId,
           transactionId: toId(options.transaction.id),
           createFeed: options.createFeed,
+          direction: options.direction,
+          differenceReason: options.differenceReason,
+          differenceAmount: options.differenceAmount,
+          feeAmount: options.feeAmount,
         })
       : null;
 
   return {
     payload,
+    direction: amountPlan.direction,
+    signedAmount: resolvedAmount,
     voucher: {
       id: toId(options.voucher.id),
       status: toText(options.voucher.status) || null,
@@ -472,9 +722,11 @@ export function buildBookExistingVoucherPlan(options: {
       amount: transactionAmount,
       valueDate,
       payeePayerName: toText(options.transaction.payeePayerName) || null,
+      paymtPurpose: toText(options.transaction.paymtPurpose) || null,
       checkAccountId,
     },
     warnings,
+    escalation,
   };
 }
 
@@ -557,7 +809,10 @@ export function matchTransactions(
       }
 
       if (criteria.amount !== null && criteria.amount !== undefined && amount !== null) {
-        const delta = Math.abs(amount - criteria.amount);
+        const delta = Math.min(
+          Math.abs(amount - criteria.amount),
+          Math.abs(Math.abs(amount) - Math.abs(criteria.amount))
+        );
         if (delta <= 0.01) {
           score += 900;
           reasons.push("amount:exact");
@@ -617,9 +872,19 @@ export function buildBookVoucherPayload(options: {
   checkAccountId: string;
   transactionId?: string;
   createFeed?: boolean;
+  direction?: BookingDirection;
+  differenceReason?: string;
+  differenceAmount?: number;
+  feeAmount?: number;
 }): Record<string, unknown> {
-  const payload: Record<string, unknown> = {
+  const amountPlan = applyDirectionToAmount({
     amount: options.amount,
+    direction: options.direction,
+    explicitAmount: !options.direction || options.direction === "auto",
+  });
+
+  const payload: Record<string, unknown> = {
+    amount: amountPlan.amount,
     date: options.date,
     type: options.type,
     checkAccount: {
@@ -637,6 +902,23 @@ export function buildBookVoucherPayload(options: {
 
   if (typeof options.createFeed === "boolean") {
     payload.createFeed = options.createFeed;
+  }
+
+  if (options.differenceReason) {
+    payload.differenceReason = options.differenceReason;
+  }
+
+  if (typeof options.differenceAmount === "number") {
+    payload.differenceAmount = roundMoney(Math.abs(options.differenceAmount));
+  }
+
+  if (typeof options.feeAmount === "number") {
+    payload.feeAmount = roundMoney(Math.abs(options.feeAmount));
+  } else if (
+    options.differenceReason === "payment-fees" &&
+    typeof options.differenceAmount === "number"
+  ) {
+    payload.feeAmount = roundMoney(Math.abs(options.differenceAmount));
   }
 
   return payload;

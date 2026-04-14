@@ -102,6 +102,29 @@ export function deriveRemediationHints(options: {
     );
   }
 
+  if (
+    options.operationId === "bookVoucher" &&
+    options.status === 422
+  ) {
+    hints.add(
+      "Check booking direction and amount sign. Expense bookings against negative bank/card transactions may require a negative `amount` or `--direction expense`."
+    );
+    hints.add(
+      "If voucher gross and transaction amount differ by 0.01 EUR, retry with gross mode or the actual charged gross amount."
+    );
+  }
+
+  if (
+    joined.includes("umsatzsteuerausgleich") ||
+    joined.includes("versicherung") ||
+    joined.includes("schadensersatz") ||
+    joined.includes("entschädigung")
+  ) {
+    hints.add(
+      "This looks like a damage or insurance settlement case. Prefer a manual sevdesk UI workflow and verify the repair voucher, non-taxable compensation and final residual amount separately."
+    );
+  }
+
   if (options.operationId === "updateInvoiceTemplate") {
     hints.add(
       "Use `updateInvoiceTemplate` only for layout/template keys (`language`, `template`, `letterpaper`, `payPal`). For content changes use `sevdesk-agent invoice recreate --from <id> ...`."

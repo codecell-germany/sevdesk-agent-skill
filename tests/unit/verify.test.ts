@@ -412,6 +412,53 @@ describe("runWriteVerification", () => {
     expect(request).toHaveBeenCalledTimes(2);
   });
 
+  it("treats negative paidAmount as failed expense-booking verification", async () => {
+    const request = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: {},
+      data: {
+        objects: {
+          id: "901",
+          status: "1000",
+          paidAmount: "-119",
+        },
+      },
+    });
+
+    const client = { request } as unknown as SevdeskClient;
+    const verification = await runWriteVerification({
+      operationId: "bookVoucher",
+      client,
+      body: {
+        amount: -119,
+        checkAccount: { id: "5", objectName: "CheckAccount" },
+        checkAccountTransaction: {
+          id: "100",
+          objectName: "CheckAccountTransaction",
+        },
+      },
+      writeResponse: {
+        ok: true,
+        status: 200,
+        headers: {},
+        data: {
+          objects: {
+            voucher: { id: "901", objectName: "Voucher" },
+            toStatus: "1000",
+          },
+        },
+      },
+      bookVoucherOptions: {
+        maxAttempts: 1,
+        retryDelayMs: 0,
+      },
+    });
+
+    expect(verification?.ok).toBe(false);
+    expect(verification?.checks.some((check) => check.check === "paidAmountDirection" && check.ok === false)).toBe(true);
+  });
+
   it("can auto-fix createContact customerNumber mismatch", async () => {
     const request = vi
       .fn()

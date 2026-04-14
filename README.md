@@ -146,10 +146,13 @@ sevdesk-agent create-voucher-from-pdf \
 sevdesk-agent find-transaction "Adobe" --amount 119 --booked false --output json
 sevdesk-agent match-transaction --voucher-id 901 --output json
 sevdesk-agent transaction find-match --supplier "Adobe" --amount 119 --date 2026-03-10 --direction expense --output json
+sevdesk-agent accounting resolve --account-number 4210 --scope expense --output json
+sevdesk-agent accounting resolve-tax-rule --tax-rule 1 --output json
 sevdesk-agent voucher inspect --id 901 --output json
 sevdesk-agent voucher book-existing \
   --voucher-id 901 \
   --transaction-id 100 \
+  --direction expense \
   --execute \
   --verify
 sevdesk-agent assign-voucher-to-transaction \
@@ -157,6 +160,7 @@ sevdesk-agent assign-voucher-to-transaction \
   --check-account-id 5 \
   --transaction-id 100 \
   --amount 119 \
+  --direction expense \
   --execute \
   --verify
 ```
@@ -167,16 +171,34 @@ sevdesk-agent assign-voucher-to-transaction \
 sevdesk-agent expense process-paid \
   --file /absolute/path/to/adobe-march-2026.pdf \
   --transaction-id 100 \
-  --supplier-name "Adobe" \
+  --reference-voucher-id 880 \
   --voucher-date 2026-03-10 \
   --amount 119 \
-  --tax-type default \
-  --tax-rule-id 9 \
-  --tax-rate 19 \
-  --account-datev-id 700 \
-  --accounting-type-id 33 \
+  --policy gross-fallback \
+  --direction expense \
   --execute \
   --verify
+```
+
+### Special booking cases
+
+```bash
+sevdesk-agent book-voucher \
+  --voucher-id 901 \
+  --check-account-id 5 \
+  --transaction-id 100 \
+  --amount 2.95 \
+  --direction expense \
+  --difference-reason payment-fees \
+  --difference-amount 2.95 \
+  --execute \
+  --verify
+
+sevdesk-agent expense process-paid \
+  --file /absolute/path/to/repair.pdf \
+  --transaction-id 1843991732 \
+  --policy damage-settlement \
+  --output json
 ```
 
 ### Installment invoice from an existing invoice
@@ -223,6 +245,8 @@ sevdesk-agent invoice recreate \
 - `sevdesk-agent match-transaction ...`
 - `sevdesk-agent transaction find-match ...`
 - `sevdesk-agent transaction list-open-expenses ...`
+- `sevdesk-agent accounting resolve ...`
+- `sevdesk-agent accounting resolve-tax-rule ...`
 - `sevdesk-agent create-voucher-from-pdf ...`
 - `sevdesk-agent voucher inspect ...`
 - `sevdesk-agent voucher book-existing ...`
@@ -397,10 +421,13 @@ sevdesk-agent create-voucher-from-pdf \
 sevdesk-agent find-transaction "Adobe" --amount 119 --booked false --output json
 sevdesk-agent match-transaction --voucher-id 901 --output json
 sevdesk-agent transaction find-match --supplier "Adobe" --amount 119 --date 2026-03-10 --direction expense --output json
+sevdesk-agent accounting resolve --account-number 4210 --scope expense --output json
+sevdesk-agent accounting resolve-tax-rule --tax-rule 1 --output json
 sevdesk-agent voucher inspect --id 901 --output json
 sevdesk-agent voucher book-existing \
   --voucher-id 901 \
   --transaction-id 100 \
+  --direction expense \
   --execute \
   --verify
 sevdesk-agent assign-voucher-to-transaction \
@@ -408,6 +435,7 @@ sevdesk-agent assign-voucher-to-transaction \
   --check-account-id 5 \
   --transaction-id 100 \
   --amount 119 \
+  --direction expense \
   --execute \
   --verify
 ```
@@ -418,16 +446,34 @@ sevdesk-agent assign-voucher-to-transaction \
 sevdesk-agent expense process-paid \
   --file /absolute/path/to/adobe-march-2026.pdf \
   --transaction-id 100 \
-  --supplier-name "Adobe" \
+  --reference-voucher-id 880 \
   --voucher-date 2026-03-10 \
   --amount 119 \
-  --tax-type default \
-  --tax-rule-id 9 \
-  --tax-rate 19 \
-  --account-datev-id 700 \
-  --accounting-type-id 33 \
+  --policy gross-fallback \
+  --direction expense \
   --execute \
   --verify
+```
+
+### Sonderfälle
+
+```bash
+sevdesk-agent book-voucher \
+  --voucher-id 901 \
+  --check-account-id 5 \
+  --transaction-id 100 \
+  --amount 2.95 \
+  --direction expense \
+  --difference-reason payment-fees \
+  --difference-amount 2.95 \
+  --execute \
+  --verify
+
+sevdesk-agent expense process-paid \
+  --file /absolute/path/to/reparatur.pdf \
+  --transaction-id 1843991732 \
+  --policy damage-settlement \
+  --output json
 ```
 
 ### Abschlagsrechnung aus bestehender Rechnung
@@ -474,6 +520,8 @@ sevdesk-agent invoice recreate \
 - `sevdesk-agent match-transaction ...`
 - `sevdesk-agent transaction find-match ...`
 - `sevdesk-agent transaction list-open-expenses ...`
+- `sevdesk-agent accounting resolve ...`
+- `sevdesk-agent accounting resolve-tax-rule ...`
 - `sevdesk-agent create-voucher-from-pdf ...`
 - `sevdesk-agent voucher inspect ...`
 - `sevdesk-agent voucher book-existing ...`

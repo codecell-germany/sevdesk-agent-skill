@@ -62,12 +62,21 @@ import {
   buildOrderEditPatch,
 } from "./lib/edit-workflows";
 import {
+  filterAccountingGuidanceAccounts,
+  normalizeAccountingGuidanceAccounts,
+  summarizeTaxRuleGuidance,
+} from "./lib/accounting-workflows";
+import {
   buildBookExistingVoucherPlan,
   buildBookVoucherPayload,
   buildTransactionDateRange,
   buildTransactionMatchCriteriaFromVoucher,
   buildVoucherPayloadFromArgs,
   buildVoucherPayloadFromTemplate,
+  deriveReferenceVoucherDefaults,
+  detectWorkflowEscalation,
+  type BookingDirection,
+  type ExpenseWorkflowPolicy,
   extractUploadedFileMetadata,
   extractTransactionObjects,
   extractUploadedFilename,
@@ -140,6 +149,44 @@ function printPayload(
     return;
   }
   process.stdout.write(`${toPrettyJson(payload)}\n`);
+}
+
+function printWorkflowFailure(
+  payload: Record<string, unknown>,
+  outputMode: "pretty" | "json" | "raw"
+): void {
+  process.exitCode = 1;
+  printPayload(
+    {
+      ok: false,
+      ...payload,
+    },
+    outputMode
+  );
+}
+
+async function requestNormalizedReadData(options: {
+  client: SevdeskClient;
+  operationId: string;
+  method: "GET";
+  path: string;
+  query?: Record<string, string>;
+}): Promise<{
+  response: SevdeskResponse;
+  normalizedData: unknown;
+  warnings: string[];
+}> {
+  const response = await options.client.request({
+    method: options.method,
+    path: options.path,
+    query: options.query,
+  });
+  const normalized = normalizeReadData(options.operationId, response.data);
+  return {
+    response,
+    normalizedData: normalized.normalizedData,
+    warnings: normalized.warnings,
+  };
 }
 
 function scoreField(candidate: string, term: string): number {
@@ -354,6 +401,29 @@ function parseNumberOrFail(raw: string, label: string, min?: number): number {
   return parsed;
 }
 
+function parseBookingDirectionOrFail(raw: string | undefined): BookingDirection {
+  const normalized = String(raw ?? "auto").trim().toLowerCase();
+  if (normalized === "auto" || normalized === "expense" || normalized === "revenue") {
+    return normalized;
+  }
+  fail("--direction must be one of auto|expense|revenue.");
+}
+
+function parseExpensePolicyOrFail(raw: string | undefined): ExpenseWorkflowPolicy {
+  const normalized = String(raw ?? "auto").trim().toLowerCase();
+  if (
+    normalized === "auto" ||
+    normalized === "actual-eur-charge" ||
+    normalized === "gross-fallback" ||
+    normalized === "damage-settlement"
+  ) {
+    return normalized;
+  }
+  fail(
+    "--policy must be one of auto|actual-eur-charge|gross-fallback|damage-settlement."
+  );
+}
+
 async function ensureReadableFile(filePath: string): Promise<string> {
   const resolvedPath = path.resolve(process.cwd(), filePath);
   await access(resolvedPath);
@@ -450,6 +520,14 @@ async function readVoucherWithPositions(options: {
     voucher,
     positions: extractObjectArray(positionsResponse.data),
   };
+}
+
+async function readReferenceVoucherDefaults(options: {
+  client: SevdeskClient;
+  voucherId: string;
+}) {
+  const { voucher, positions } = await readVoucherWithPositions(options);
+  return deriveReferenceVoucherDefaults(voucher, positions);
 }
 
 async function uploadVoucherPdf(options: {
@@ -768,6 +846,189 @@ async function runFindTransactionByFilters(options: {
   }
 }
 
+async function loadAccountingGuidanceAccounts(options: {
+  client: SevdeskClient;
+  scope: "all" | "expense" | "revenue";
+  accountNumber?: string;
+  accountDatevId?: string;
+}): Promise<{
+  sourceOperation: string;
+  warnings: string[];
+  accounts: ReturnType<typeof normalizeAccountingGuidanceAccounts>;
+}> {
+  const warnings: string[] = [];
+  const accountNumber = options.accountNumber?.trim();
+  const accountDatevId = options.accountDatevId?.trim();
+
+  if (accountNumber) {
+    const direct = await requestNormalizedReadData({
+      client: options.client,
+      operationId: "forAccountNumber",
+      method: "GET",
+      path: "/ReceiptGuidance/forAccountNumber",
+      query: {
+        accountNumber,
+      },
+    });
+    warnings.push(...direct.warnings);
+    if (direct.response.ok) {
+      const directAccounts = filterAccountingGuidanceAccounts(
+        normalizeAccountingGuidanceAccounts(direct.normalizedData),
+        {
+          accountNumber,
+          accountDatevId,
+        }
+      );
+      if (directAccounts.length > 0) {
+        return {
+          sourceOperation: "forAccountNumber",
+          warnings,
+          accounts: directAccounts,
+        };
+      }
+      warnings.push(
+        "ReceiptGuidance/forAccountNumber returned no direct match. Falling back to list-based guidance."
+      );
+    } else {
+      warnings.push(
+        `ReceiptGuidance/forAccountNumber returned HTTP ${direct.response.status}. Falling back to list-based guidance.`
+      );
+    }
+  }
+
+  const fallbackOperation =
+    options.scope === "expense"
+      ? "forExpense"
+      : options.scope === "revenue"
+        ? "forRevenue"
+        : "forAllAccounts";
+  const fallbackPath =
+    fallbackOperation === "forExpense"
+      ? "/ReceiptGuidance/forExpense"
+      : fallbackOperation === "forRevenue"
+        ? "/ReceiptGuidance/forRevenue"
+        : "/ReceiptGuidance/forAllAccounts";
+
+  const fallback = await requestNormalizedReadData({
+    client: options.client,
+    operationId: fallbackOperation,
+    method: "GET",
+    path: fallbackPath,
+  });
+  warnings.push(...fallback.warnings);
+  const filtered = filterAccountingGuidanceAccounts(
+    normalizeAccountingGuidanceAccounts(fallback.normalizedData),
+    {
+      accountNumber,
+      accountDatevId,
+    }
+  );
+
+  return {
+    sourceOperation: fallbackOperation,
+    warnings,
+    accounts: filtered,
+  };
+}
+
+async function runAccountingResolve(options: {
+  accountNumber?: string;
+  accountDatevId?: string;
+  scope: "all" | "expense" | "revenue";
+  referenceVoucherId?: string;
+  output: "pretty" | "json";
+  xVersion?: string;
+}): Promise<void> {
+  const config = loadConfig({ xVersion: options.xVersion });
+  const client = new SevdeskClient(config);
+  const resolved = await loadAccountingGuidanceAccounts({
+    client,
+    scope: options.scope,
+    accountNumber: options.accountNumber,
+    accountDatevId: options.accountDatevId,
+  });
+
+  let referenceVoucher: ReturnType<typeof deriveReferenceVoucherDefaults> | null = null;
+  if (options.referenceVoucherId) {
+    referenceVoucher = await readReferenceVoucherDefaults({
+      client,
+      voucherId: options.referenceVoucherId,
+    });
+  }
+
+  const matches = resolved.accounts.map((account) => ({
+    ...account,
+    referenceVoucherMatch:
+      referenceVoucher &&
+      ((referenceVoucher.accountDatevId && referenceVoucher.accountDatevId === account.accountDatevId) ||
+        (referenceVoucher.accountDatevNumber &&
+          referenceVoucher.accountDatevNumber === account.accountNumber))
+        ? {
+            voucherId: referenceVoucher.voucherId,
+            accountingTypeId: referenceVoucher.accountingTypeId,
+            accountingTypeName: referenceVoucher.accountingTypeName,
+            accountingTypeNumber: referenceVoucher.accountingTypeNumber,
+            taxRuleId: referenceVoucher.taxRuleId,
+            taxRate: referenceVoucher.taxRate,
+          }
+        : null,
+  }));
+
+  const payload = {
+    ok: true,
+    sourceOperation: resolved.sourceOperation,
+    scope: options.scope,
+    query: {
+      accountNumber: options.accountNumber ?? null,
+      accountDatevId: options.accountDatevId ?? null,
+    },
+    warningCount: resolved.warnings.length,
+    warnings: resolved.warnings,
+    referenceVoucher,
+    matchCount: matches.length,
+    matches,
+  };
+
+  if (options.output === "json") {
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
+    return;
+  }
+
+  process.stdout.write(`${toPrettyJson(payload)}\n`);
+}
+
+async function runAccountingResolveTaxRule(options: {
+  taxRule: string;
+  output: "pretty" | "json";
+  xVersion?: string;
+}): Promise<void> {
+  const config = loadConfig({ xVersion: options.xVersion });
+  const client = new SevdeskClient(config);
+  const response = await requestNormalizedReadData({
+    client,
+    operationId: "forTaxRule",
+    method: "GET",
+    path: "/ReceiptGuidance/forTaxRule",
+    query: {
+      taxRule: options.taxRule,
+    },
+  });
+  const payload = {
+    ok: response.response.ok,
+    status: response.response.status,
+    warnings: response.warnings,
+    taxRule: options.taxRule,
+    matches: summarizeTaxRuleGuidance(response.normalizedData),
+  };
+
+  if (options.output === "json") {
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
+    return;
+  }
+
+  process.stdout.write(`${toPrettyJson(payload)}\n`);
+}
+
 async function runMatchTransactionByVoucher(options: {
   voucherId: string;
   limit: number;
@@ -818,7 +1079,7 @@ async function runMatchTransactionByVoucher(options: {
     top &&
     top.checkAccountId &&
     typeof criteria.amount === "number"
-      ? `sevdesk-agent voucher book-existing --voucher-id ${options.voucherId} --transaction-id ${top.id} --amount ${criteria.amount.toFixed(2)} --date ${top.valueDate ?? todayISO()} --execute --verify`
+      ? `sevdesk-agent voucher book-existing --voucher-id ${options.voucherId} --transaction-id ${top.id} --amount ${criteria.amount.toFixed(2)} --direction ${typeof top.amount === "number" && top.amount < 0 ? "expense" : "revenue"} --date ${top.valueDate ?? todayISO()} --execute --verify`
       : null;
 
   const payload = {
@@ -890,6 +1151,7 @@ function buildVoucherPayloadForPdfWorkflow(options: {
   filePath: string;
   filename: string;
   templateBody?: unknown;
+  referenceDefaults?: ReturnType<typeof deriveReferenceVoucherDefaults>;
   supplierId?: string;
   supplierName?: string;
   description?: string;
@@ -908,61 +1170,136 @@ function buildVoucherPayloadForPdfWorkflow(options: {
   accountingTypeId?: string;
   comment?: string;
   isAsset: boolean;
-}): Record<string, unknown> {
+  transactionAmount?: number | null;
+  policy: ExpenseWorkflowPolicy;
+}): {
+  payload: Record<string, unknown>;
+  warnings: string[];
+  appliedPolicies: string[];
+  escalation: ReturnType<typeof detectWorkflowEscalation>;
+} {
+  const warnings: string[] = [];
+  const appliedPolicies: string[] = [];
+  const referenceDefaults = options.referenceDefaults;
+
+  const escalation = detectWorkflowEscalation({
+    policy: options.policy,
+    supplierName: options.supplierName ?? referenceDefaults?.supplierName ?? null,
+    description: options.description ?? null,
+  });
+
   if (options.templateBody) {
-    return buildVoucherPayloadFromTemplate(options.templateBody, options.filename);
+    return {
+      payload: buildVoucherPayloadFromTemplate(options.templateBody, options.filename),
+      warnings,
+      appliedPolicies,
+      escalation,
+    };
   }
 
-  if (!options.voucherDate) {
+  const voucherDate = options.voucherDate;
+  if (!voucherDate) {
     fail("create-voucher-from-pdf: --voucher-date is required in simple mode.");
   }
-  if (options.amount === undefined) {
-    fail("create-voucher-from-pdf: --amount is required in simple mode.");
+
+  let net = options.net;
+  let amount = options.amount;
+  let supplierId = options.supplierId ?? referenceDefaults?.supplierId ?? undefined;
+  let supplierName = options.supplierName ?? referenceDefaults?.supplierName ?? undefined;
+  let taxType = options.taxType ?? referenceDefaults?.taxType ?? undefined;
+  let taxRuleId = options.taxRuleId ?? referenceDefaults?.taxRuleId ?? undefined;
+  let taxRate = options.taxRate ?? referenceDefaults?.taxRate ?? undefined;
+  let accountDatevId =
+    options.accountDatevId ?? referenceDefaults?.accountDatevId ?? undefined;
+  let accountingTypeId =
+    options.accountingTypeId ?? referenceDefaults?.accountingTypeId ?? undefined;
+  let creditDebit = options.creditDebit ?? referenceDefaults?.creditDebit ?? "D";
+  let voucherType = options.voucherType ?? referenceDefaults?.voucherType ?? undefined;
+  let comment = options.comment ?? referenceDefaults?.comment ?? undefined;
+  const isAsset = options.isAsset || referenceDefaults?.isAsset === true;
+
+  if (amount === undefined && options.policy === "actual-eur-charge") {
+    if (typeof options.transactionAmount === "number") {
+      amount = Math.abs(options.transactionAmount);
+      net = false;
+      appliedPolicies.push("actual-eur-charge");
+      warnings.push(
+        "Using the actual absolute transaction amount as gross voucher amount (`actual-eur-charge`)."
+      );
+    }
   }
-  if (!options.taxType) {
-    fail("create-voucher-from-pdf: --tax-type is required in simple mode.");
-  }
-  if (!options.taxRuleId) {
-    fail("create-voucher-from-pdf: --tax-rule-id is required in simple mode.");
-  }
-  if (options.taxRate === undefined) {
-    fail("create-voucher-from-pdf: --tax-rate is required in simple mode.");
-  }
-  if (!options.accountDatevId) {
-    fail("create-voucher-from-pdf: --account-datev-id is required in simple mode.");
-  }
-  if (!options.accountingTypeId) {
+
+  if (amount === undefined) {
     fail(
-      "create-voucher-from-pdf: --accounting-type-id is required in simple mode."
+      "create-voucher-from-pdf: --amount is required in simple mode unless `--policy actual-eur-charge` can derive it from the transaction."
     );
   }
-  if (!options.supplierId && !options.supplierName) {
+  if (!taxType) {
+    fail("create-voucher-from-pdf: --tax-type is required in simple mode.");
+  }
+  if (!taxRuleId) {
+    fail("create-voucher-from-pdf: --tax-rule-id is required in simple mode.");
+  }
+  if (taxRate === undefined) {
+    fail("create-voucher-from-pdf: --tax-rate is required in simple mode.");
+  }
+  if (!accountDatevId) {
+    fail("create-voucher-from-pdf: --account-datev-id is required in simple mode.");
+  }
+  if (!accountingTypeId) {
+    warnings.push(
+      "No accountingType.id available. The local preflight no longer blocks this, but a reference voucher with accountingType is safer."
+    );
+  }
+  if (!supplierId && !supplierName) {
     fail(
       "create-voucher-from-pdf: provide either --supplier-id or --supplier-name in simple mode."
     );
   }
 
-  return buildVoucherPayloadFromArgs({
-    supplierId: options.supplierId,
-    supplierName: options.supplierName,
-    description: options.description || path.basename(options.filePath),
-    voucherDate: options.voucherDate,
-    deliveryDate: options.deliveryDate ?? options.voucherDate,
-    currency: options.currency,
-    status: options.status,
-    creditDebit: options.creditDebit ?? "D",
-    voucherType: options.voucherType,
-    taxType: options.taxType,
-    taxRuleId: options.taxRuleId,
-    taxRate: options.taxRate,
-    amount: options.amount,
-    net: options.net,
-    accountDatevId: options.accountDatevId,
-    accountingTypeId: options.accountingTypeId,
-    filename: options.filename,
-    comment: options.comment,
-    isAsset: options.isAsset,
-  });
+  if (
+    options.policy === "gross-fallback" &&
+    net &&
+    typeof options.transactionAmount === "number"
+  ) {
+    const expectedGross = Math.round(amount * (1 + taxRate / 100) * 100) / 100;
+    const delta = Math.abs(Math.abs(options.transactionAmount) - expectedGross);
+    if (delta > 0 && delta <= 0.01) {
+      net = false;
+      amount = Math.abs(options.transactionAmount);
+      appliedPolicies.push("gross-fallback");
+      warnings.push(
+        `Detected a ${delta.toFixed(2)} EUR rounding drift between net-derived gross and transaction amount. Switching to gross mode.`
+      );
+    }
+  }
+
+  return {
+    payload: buildVoucherPayloadFromArgs({
+      supplierId,
+      supplierName,
+      description: options.description || path.basename(options.filePath),
+      voucherDate,
+      deliveryDate: options.deliveryDate ?? voucherDate,
+      currency: options.currency,
+      status: options.status,
+      creditDebit,
+      voucherType,
+      taxType,
+      taxRuleId,
+      taxRate,
+      amount,
+      net,
+      accountDatevId,
+      accountingTypeId: accountingTypeId ?? "",
+      filename: options.filename,
+      comment,
+      isAsset,
+    }),
+    warnings,
+    appliedPolicies,
+    escalation,
+  };
 }
 
 async function saveVoucherPayload(options: {
@@ -1237,7 +1574,7 @@ const program = new Command();
 program
   .name("sevdesk-agent")
   .description("Agent-focused sevdesk CLI (TypeScript)")
-  .version("0.1.11")
+  .version("0.1.12")
   .addHelpText(
     "after",
     [
@@ -2039,6 +2376,60 @@ transactionCli
     });
   });
 
+const accountingCli = program
+  .command("accounting")
+  .description("Accounting guidance and account resolution helpers");
+
+accountingCli
+  .command("resolve")
+  .description("Resolve sevdesk receipt-guidance accounts by account number or accountDatev id")
+  .option("--account-number <number>", "Fachliche Kontonummer")
+  .option("--account-datev-id <id>", "Technische accountDatev id")
+  .option("--scope <scope>", "all|expense|revenue", "all")
+  .option("--reference-voucher-id <id>", "Optional voucher id used to enrich the result with accountingType hints")
+  .option("--x-version <version>", "Optional sevdesk X-Version header")
+  .option("--output <mode>", "pretty|json", "pretty")
+  .action(async (opts) => {
+    if (opts.output !== "pretty" && opts.output !== "json") {
+      fail("--output must be either pretty or json.");
+    }
+    if (!opts.accountNumber && !opts.accountDatevId) {
+      fail("Provide either --account-number or --account-datev-id.");
+    }
+    const scope = String(opts.scope ?? "all").trim().toLowerCase();
+    if (scope !== "all" && scope !== "expense" && scope !== "revenue") {
+      fail("--scope must be one of all|expense|revenue.");
+    }
+
+    await runAccountingResolve({
+      accountNumber: opts.accountNumber ? String(opts.accountNumber) : undefined,
+      accountDatevId: opts.accountDatevId ? String(opts.accountDatevId) : undefined,
+      scope,
+      referenceVoucherId: opts.referenceVoucherId
+        ? String(opts.referenceVoucherId)
+        : undefined,
+      output: opts.output,
+      xVersion: opts.xVersion,
+    });
+  });
+
+accountingCli
+  .command("resolve-tax-rule")
+  .description("Resolve receipt-guidance information for a specific sevdesk tax rule")
+  .requiredOption("--tax-rule <value>", "Tax rule id or code")
+  .option("--x-version <version>", "Optional sevdesk X-Version header")
+  .option("--output <mode>", "pretty|json", "pretty")
+  .action(async (opts) => {
+    if (opts.output !== "pretty" && opts.output !== "json") {
+      fail("--output must be either pretty or json.");
+    }
+    await runAccountingResolveTaxRule({
+      taxRule: String(opts.taxRule),
+      output: opts.output,
+      xVersion: opts.xVersion,
+    });
+  });
+
 const voucherCli = program
   .command("voucher")
   .description("Voucher inspection and booking workflows");
@@ -2068,8 +2459,12 @@ voucherCli
   .requiredOption("--voucher-id <id>", "Sevdesk voucher id")
   .requiredOption("--transaction-id <id>", "Sevdesk checkAccountTransaction id")
   .option("--amount <n>", "Override booking amount")
+  .option("--direction <mode>", "auto|expense|revenue", "auto")
   .option("--date <date>", "Override booking date")
   .option("--type <type>", "Booking type", "FULL_PAYMENT")
+  .option("--difference-reason <reason>", "Optional sevdesk difference reason, e.g. payment-fees")
+  .option("--difference-amount <n>", "Optional difference amount >= 0")
+  .option("--fee-amount <n>", "Optional payment fee amount >= 0")
   .option("--create-feed", "Set createFeed=true", false)
   .option("--execute", "Actually book the voucher", false)
   .option("--verify", "Run post-book verification", false)
@@ -2095,10 +2490,22 @@ voucherCli
       transaction,
       amount:
         opts.amount !== undefined
-          ? parseNumberOrFail(String(opts.amount), "--amount", 0)
+          ? parseNumberOrFail(String(opts.amount), "--amount")
           : undefined,
+      direction: parseBookingDirectionOrFail(opts.direction),
       date: opts.date ? String(opts.date) : undefined,
       type: String(opts.type),
+      differenceReason: opts.differenceReason
+        ? String(opts.differenceReason)
+        : undefined,
+      differenceAmount:
+        opts.differenceAmount !== undefined
+          ? parseNumberOrFail(String(opts.differenceAmount), "--difference-amount", 0)
+          : undefined,
+      feeAmount:
+        opts.feeAmount !== undefined
+          ? parseNumberOrFail(String(opts.feeAmount), "--fee-amount", 0)
+          : undefined,
       createFeed: opts.createFeed ? true : undefined,
     });
 
@@ -2117,8 +2524,25 @@ voucherCli
           dryRun: true,
           voucher: plan.voucher,
           transaction: plan.transaction,
+          direction: plan.direction,
+          signedAmount: plan.signedAmount,
           warnings: plan.warnings,
+          escalation: plan.escalation,
           payload: plan.payload,
+        },
+        opts.output
+      );
+      return;
+    }
+
+    if (plan.escalation?.manualUiRequired) {
+      printWorkflowFailure(
+        {
+          workflowMode: "assign-and-book",
+          voucher: plan.voucher,
+          transaction: plan.transaction,
+          warnings: plan.warnings,
+          escalation: plan.escalation,
         },
         opts.output
       );
@@ -2135,7 +2559,10 @@ voucherCli
     await printResponse(result.response, opts.output, undefined, {
       voucher: plan.voucher,
       transaction: plan.transaction,
+      direction: plan.direction,
+      signedAmount: plan.signedAmount,
       warnings: plan.warnings,
+      escalation: plan.escalation,
       ...result.extras,
     });
   });
@@ -2152,6 +2579,7 @@ expenseCli
   .requiredOption("--file <path>", "Absolute or relative PDF path")
   .requiredOption("--transaction-id <id>", "Existing checkAccountTransaction id")
   .option("--body-file <file>", "JSON file with a saveVoucher payload template")
+  .option("--reference-voucher-id <id>", "Optional reference voucher used to derive account, tax and booking defaults")
   .option("--supplier-id <id>", "Existing sevdesk supplier contact id")
   .option("--supplier-name <name>", "Supplier name when no contact id exists")
   .option("--description <text>", "Voucher description (defaults to filename)")
@@ -2170,6 +2598,15 @@ expenseCli
   .option("--accounting-type-id <id>", "Required in simple mode")
   .option("--comment <text>", "Optional voucher position comment")
   .option("--asset", "Mark voucher position as asset", false)
+  .option("--direction <mode>", "auto|expense|revenue", "auto")
+  .option(
+    "--policy <policy>",
+    "auto|actual-eur-charge|gross-fallback|damage-settlement",
+    "auto"
+  )
+  .option("--difference-reason <reason>", "Optional sevdesk difference reason, e.g. payment-fees")
+  .option("--difference-amount <n>", "Optional difference amount >= 0")
+  .option("--fee-amount <n>", "Optional payment fee amount >= 0")
   .option("--booking-date <date>", "Override booking date")
   .option("--booking-type <type>", "Booking type", "FULL_PAYMENT")
   .option("--create-feed", "Set createFeed=true during booking", false)
@@ -2191,11 +2628,20 @@ expenseCli
       client,
       transactionId: String(opts.transactionId),
     });
+    const referenceDefaults = opts.referenceVoucherId
+      ? await readReferenceVoucherDefaults({
+          client,
+          voucherId: String(opts.referenceVoucherId),
+        })
+      : undefined;
+    const direction = parseBookingDirectionOrFail(opts.direction);
+    const policy = parseExpensePolicyOrFail(opts.policy);
 
-    const voucherPayloadPreview = buildVoucherPayloadForPdfWorkflow({
+    const voucherPreviewPlan = buildVoucherPayloadForPdfWorkflow({
       filePath: absoluteFilePath,
       filename: "__uploaded_on_execute__.pdf",
       templateBody,
+      referenceDefaults,
       supplierId: opts.supplierId,
       supplierName: opts.supplierName,
       description: opts.description,
@@ -2220,11 +2666,16 @@ expenseCli
       accountingTypeId: opts.accountingTypeId,
       comment: opts.comment,
       isAsset: Boolean(opts.asset),
+      transactionAmount:
+        typeof transaction.amount === "number" || typeof transaction.amount === "string"
+          ? Number(transaction.amount)
+          : null,
+      policy,
     });
 
     const voucherPreviewPreflight = validateWritePreflight(
       "voucherFactorySaveVoucher",
-      voucherPayloadPreview
+      voucherPreviewPlan.payload
     );
     if (voucherPreviewPreflight.errors.length > 0) {
       fail(
@@ -2242,15 +2693,27 @@ expenseCli
 
     const previewPlan = buildBookExistingVoucherPlan({
       voucher:
-        (voucherPayloadPreview.voucher as Record<string, unknown> | undefined) ??
+        (voucherPreviewPlan.payload.voucher as Record<string, unknown> | undefined) ??
         ({} as Record<string, unknown>),
       transaction,
       amount:
         opts.amount !== undefined
-          ? parseNumberOrFail(String(opts.amount), "--amount", 0)
+          ? parseNumberOrFail(String(opts.amount), "--amount")
           : undefined,
+      direction,
       date: opts.bookingDate ? String(opts.bookingDate) : undefined,
       type: String(opts.bookingType),
+      differenceReason: opts.differenceReason
+        ? String(opts.differenceReason)
+        : undefined,
+      differenceAmount:
+        opts.differenceAmount !== undefined
+          ? parseNumberOrFail(String(opts.differenceAmount), "--difference-amount", 0)
+          : undefined,
+      feeAmount:
+        opts.feeAmount !== undefined
+          ? parseNumberOrFail(String(opts.feeAmount), "--fee-amount", 0)
+          : undefined,
       createFeed: opts.createFeed ? true : undefined,
     });
 
@@ -2268,10 +2731,32 @@ expenseCli
         {
           dryRun: true,
           filePath: absoluteFilePath,
+          policy,
+          referenceDefaults,
           transaction: previewPlan.transaction,
-          warnings: previewPlan.warnings,
-          voucherPayload: voucherPayloadPreview,
+          direction: previewPlan.direction,
+          signedAmount: previewPlan.signedAmount,
+          warnings: [...voucherPreviewPlan.warnings, ...previewPlan.warnings],
+          escalation: previewPlan.escalation ?? voucherPreviewPlan.escalation,
+          appliedPolicies: voucherPreviewPlan.appliedPolicies,
+          voucherPayload: voucherPreviewPlan.payload,
           bookingPayload: previewPlan.payload,
+        },
+        opts.output
+      );
+      return;
+    }
+
+    const workflowEscalation = previewPlan.escalation ?? voucherPreviewPlan.escalation;
+    if (workflowEscalation?.manualUiRequired) {
+      printWorkflowFailure(
+        {
+          workflowMode: "process-paid-expense",
+          filePath: absoluteFilePath,
+          referenceDefaults,
+          transaction: previewPlan.transaction,
+          warnings: [...voucherPreviewPlan.warnings, ...previewPlan.warnings],
+          escalation: workflowEscalation,
         },
         opts.output
       );
@@ -2296,10 +2781,11 @@ expenseCli
       return;
     }
 
-    const voucherPayload = buildVoucherPayloadForPdfWorkflow({
+    const voucherCreatePlan = buildVoucherPayloadForPdfWorkflow({
       filePath: absoluteFilePath,
       filename: upload.uploadedFilename,
       templateBody,
+      referenceDefaults,
       supplierId: opts.supplierId,
       supplierName: opts.supplierName,
       description: opts.description,
@@ -2324,11 +2810,16 @@ expenseCli
       accountingTypeId: opts.accountingTypeId,
       comment: opts.comment,
       isAsset: Boolean(opts.asset),
+      transactionAmount:
+        typeof transaction.amount === "number" || typeof transaction.amount === "string"
+          ? Number(transaction.amount)
+          : null,
+      policy,
     });
 
     const createResult = await saveVoucherPayload({
       client,
-      payload: voucherPayload,
+      payload: voucherCreatePlan.payload,
       verify: Boolean(opts.verify),
     });
     if (!createResult.response.ok) {
@@ -2367,8 +2858,20 @@ expenseCli
     const executionPlan = buildBookExistingVoucherPlan({
       voucher,
       transaction,
+      direction,
       date: opts.bookingDate ? String(opts.bookingDate) : undefined,
       type: String(opts.bookingType),
+      differenceReason: opts.differenceReason
+        ? String(opts.differenceReason)
+        : undefined,
+      differenceAmount:
+        opts.differenceAmount !== undefined
+          ? parseNumberOrFail(String(opts.differenceAmount), "--difference-amount", 0)
+          : undefined,
+      feeAmount:
+        opts.feeAmount !== undefined
+          ? parseNumberOrFail(String(opts.feeAmount), "--fee-amount", 0)
+          : undefined,
       createFeed: opts.createFeed ? true : undefined,
     });
     if (!executionPlan.payload) {
@@ -2389,7 +2892,9 @@ expenseCli
     });
     await printResponse(bookResult.response, opts.output, undefined, {
       workflowMode: "process-paid-expense",
+      policy,
       createdVoucherId,
+      referenceDefaults,
       normalizedUpload: upload.normalizedUpload,
       upload: {
         status: upload.response.status,
@@ -2401,7 +2906,11 @@ expenseCli
       },
       voucher: executionPlan.voucher,
       transaction: executionPlan.transaction,
-      warnings: executionPlan.warnings,
+      direction: executionPlan.direction,
+      signedAmount: executionPlan.signedAmount,
+      warnings: [...voucherCreatePlan.warnings, ...executionPlan.warnings],
+      appliedPolicies: voucherCreatePlan.appliedPolicies,
+      escalation: executionPlan.escalation ?? voucherCreatePlan.escalation,
       ...bookResult.extras,
     });
   });
@@ -2413,6 +2922,7 @@ program
   )
   .requiredOption("--file <path>", "Absolute or relative PDF path")
   .option("--body-file <file>", "JSON file with a saveVoucher payload template")
+  .option("--reference-voucher-id <id>", "Optional reference voucher used to derive account and tax defaults")
   .option("--supplier-id <id>", "Existing sevdesk supplier contact id")
   .option("--supplier-name <name>", "Supplier name when no contact id exists")
   .option("--description <text>", "Voucher description (defaults to filename)")
@@ -2431,6 +2941,11 @@ program
   .option("--accounting-type-id <id>", "Required in simple mode")
   .option("--comment <text>", "Optional voucher position comment")
   .option("--asset", "Mark voucher position as asset", false)
+  .option(
+    "--policy <policy>",
+    "auto|actual-eur-charge|gross-fallback|damage-settlement",
+    "auto"
+  )
   .option("--execute", "Actually upload and create the voucher", false)
   .option("--verify", "Run post-write verification", false)
   .option("--x-version <version>", "Optional sevdesk X-Version header")
@@ -2443,10 +2958,20 @@ program
     const absoluteFilePath = await ensureReadableFile(String(opts.file));
     const templateBody = opts.bodyFile ? await readJsonFile(String(opts.bodyFile)) : undefined;
     const filenamePlaceholder = "__uploaded_on_execute__.pdf";
-    const payloadPreview = buildVoucherPayloadForPdfWorkflow({
+    const config = loadConfig({ xVersion: opts.xVersion });
+    const client = new SevdeskClient(config);
+    const referenceDefaults = opts.referenceVoucherId
+      ? await readReferenceVoucherDefaults({
+          client,
+          voucherId: String(opts.referenceVoucherId),
+        })
+      : undefined;
+    const policy = parseExpensePolicyOrFail(opts.policy);
+    const payloadPreviewPlan = buildVoucherPayloadForPdfWorkflow({
       filePath: absoluteFilePath,
       filename: filenamePlaceholder,
       templateBody,
+      referenceDefaults,
       supplierId: opts.supplierId,
       supplierName: opts.supplierName,
       description: opts.description,
@@ -2471,11 +2996,12 @@ program
       accountingTypeId: opts.accountingTypeId,
       comment: opts.comment,
       isAsset: Boolean(opts.asset),
+      policy,
     });
 
     const previewPreflight = validateWritePreflight(
       "voucherFactorySaveVoucher",
-      payloadPreview
+      payloadPreviewPlan.payload
     );
     if (previewPreflight.errors.length > 0) {
       fail(
@@ -2496,18 +3022,20 @@ program
         `${toPrettyJson({
           dryRun: true,
           filePath: absoluteFilePath,
+          policy,
+          referenceDefaults,
+          warnings: payloadPreviewPlan.warnings,
+          appliedPolicies: payloadPreviewPlan.appliedPolicies,
+          escalation: payloadPreviewPlan.escalation,
           upload: {
             skipped: true,
             filenamePlaceholder,
           },
-          payload: payloadPreview,
+          payload: payloadPreviewPlan.payload,
         })}\n`
       );
       return;
     }
-
-    const config = loadConfig({ xVersion: opts.xVersion });
-    const client = new SevdeskClient(config);
     const upload = await uploadVoucherPdf({
       client,
       filePath: absoluteFilePath,
@@ -2530,10 +3058,11 @@ program
 
     const uploadedFilename = upload.uploadedFilename;
 
-    const payload = buildVoucherPayloadForPdfWorkflow({
+    const payloadPlan = buildVoucherPayloadForPdfWorkflow({
       filePath: absoluteFilePath,
       filename: uploadedFilename,
       templateBody,
+      referenceDefaults,
       supplierId: opts.supplierId,
       supplierName: opts.supplierName,
       description: opts.description,
@@ -2558,15 +3087,21 @@ program
       accountingTypeId: opts.accountingTypeId,
       comment: opts.comment,
       isAsset: Boolean(opts.asset),
+      policy,
     });
 
     const result = await saveVoucherPayload({
       client,
-      payload,
+      payload: payloadPlan.payload,
       verify: Boolean(opts.verify),
     });
 
     const extras: Record<string, unknown> = {
+      policy,
+      referenceDefaults,
+      warnings: payloadPlan.warnings,
+      appliedPolicies: payloadPlan.appliedPolicies,
+      escalation: payloadPlan.escalation,
       upload: {
         status: uploadResponse.status,
         ...upload.normalizedUpload,
@@ -3163,9 +3698,13 @@ program
   .requiredOption("--voucher-id <id>", "Voucher id")
   .requiredOption("--check-account-id <id>", "Check account id used for booking")
   .requiredOption("--amount <n>", "Amount to book")
+  .option("--direction <mode>", "auto|expense|revenue", "auto")
   .option("--date <date>", "Booking date (defaults to today)")
   .option("--type <type>", "Booking type", "FULL_PAYMENT")
   .option("--transaction-id <id>", "Existing checkAccountTransaction id for online accounts")
+  .option("--difference-reason <reason>", "Optional sevdesk difference reason, e.g. payment-fees")
+  .option("--difference-amount <n>", "Optional difference amount >= 0")
+  .option("--fee-amount <n>", "Optional payment fee amount >= 0")
   .option("--create-feed", "Set createFeed=true", false)
   .option("--execute", "Actually book the voucher", false)
   .option("--verify", "Run post-book verification", false)
@@ -3177,11 +3716,23 @@ program
     }
 
     const payload = buildBookVoucherPayload({
-      amount: parseNumberOrFail(String(opts.amount), "--amount", 0),
+      amount: parseNumberOrFail(String(opts.amount), "--amount"),
+      direction: parseBookingDirectionOrFail(opts.direction),
       date: String(opts.date ?? todayISO()),
       type: String(opts.type),
       checkAccountId: String(opts.checkAccountId),
       transactionId: opts.transactionId ? String(opts.transactionId) : undefined,
+      differenceReason: opts.differenceReason
+        ? String(opts.differenceReason)
+        : undefined,
+      differenceAmount:
+        opts.differenceAmount !== undefined
+          ? parseNumberOrFail(String(opts.differenceAmount), "--difference-amount", 0)
+          : undefined,
+      feeAmount:
+        opts.feeAmount !== undefined
+          ? parseNumberOrFail(String(opts.feeAmount), "--fee-amount", 0)
+          : undefined,
       createFeed: opts.createFeed ? true : undefined,
     });
 
@@ -3228,8 +3779,12 @@ program
   .requiredOption("--check-account-id <id>", "Check account id used for booking")
   .requiredOption("--transaction-id <id>", "Existing checkAccountTransaction id")
   .requiredOption("--amount <n>", "Amount to book")
+  .option("--direction <mode>", "auto|expense|revenue", "auto")
   .option("--date <date>", "Booking date (defaults to transaction/value date if known, else today)")
   .option("--type <type>", "Booking type", "FULL_PAYMENT")
+  .option("--difference-reason <reason>", "Optional sevdesk difference reason, e.g. payment-fees")
+  .option("--difference-amount <n>", "Optional difference amount >= 0")
+  .option("--fee-amount <n>", "Optional payment fee amount >= 0")
   .option("--create-feed", "Set createFeed=true", false)
   .option("--execute", "Actually book/link the voucher", false)
   .option("--verify", "Run post-book verification", false)
@@ -3241,11 +3796,23 @@ program
     }
 
     const payload = buildBookVoucherPayload({
-      amount: parseNumberOrFail(String(opts.amount), "--amount", 0),
+      amount: parseNumberOrFail(String(opts.amount), "--amount"),
+      direction: parseBookingDirectionOrFail(opts.direction),
       date: String(opts.date ?? todayISO()),
       type: String(opts.type),
       checkAccountId: String(opts.checkAccountId),
       transactionId: String(opts.transactionId),
+      differenceReason: opts.differenceReason
+        ? String(opts.differenceReason)
+        : undefined,
+      differenceAmount:
+        opts.differenceAmount !== undefined
+          ? parseNumberOrFail(String(opts.differenceAmount), "--difference-amount", 0)
+          : undefined,
+      feeAmount:
+        opts.feeAmount !== undefined
+          ? parseNumberOrFail(String(opts.feeAmount), "--fee-amount", 0)
+          : undefined,
       createFeed: opts.createFeed ? true : undefined,
     });
 

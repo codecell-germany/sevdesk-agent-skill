@@ -226,7 +226,7 @@ describe("validateWritePreflight", () => {
     expect(result.errors).toEqual([]);
   });
 
-  it("rejects voucherFactorySaveVoucher without account mapping", () => {
+  it("keeps voucherFactorySaveVoucher strict for accountDatev and warns on missing accountingType", () => {
     const result = validateWritePreflight("voucherFactorySaveVoucher", {
       voucher: {
         objectName: "Voucher",
@@ -255,7 +255,7 @@ describe("validateWritePreflight", () => {
 
     const output = result.errors.join("\n");
     expect(output).toContain("accountDatev.id");
-    expect(output).toContain("accountingType.id");
+    expect(result.warnings.join("\n")).toContain("accountingType.id");
   });
 
   it("accepts valid bookVoucher payload", () => {
@@ -288,5 +288,20 @@ describe("validateWritePreflight", () => {
     expect(output).toContain("type");
     expect(output).toContain("checkAccount.id");
     expect(output).toContain("checkAccountTransaction.id");
+  });
+
+  it("accepts negative bookVoucher amounts and validates difference fields", () => {
+    const result = validateWritePreflight("bookVoucher", {
+      amount: -119,
+      date: "2026-03-11",
+      type: "FULL_PAYMENT",
+      checkAccount: { id: "5", objectName: "CheckAccount" },
+      differenceReason: "payment-fees",
+      differenceAmount: 2.95,
+      feeAmount: 2.95,
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.warnings.join("\n")).toContain("negative `amount`");
   });
 });
