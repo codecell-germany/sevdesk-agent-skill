@@ -1,6 +1,6 @@
 ---
 name: sevdesk-agent-cli
-description: "Sevdesk bookkeeping automation via a global CLI, with read-first discovery, voucher intake, transaction matching, invoice/order/contact workflows, and delete-guarded mutations."
+description: "Sevdesk bookkeeping automation via a global CLI, with read-first discovery, account guidance, voucher intake, transaction matching, guarded booking workflows, and delete-guarded mutations."
 ---
 
 # sevdesk-agent-cli
